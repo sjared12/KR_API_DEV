@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Feedback</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    .container { max-width: 640px; margin: 40px auto; background: #111827; border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    h1 { margin-top: 0; font-size: 1.5rem; }
+    label { display: block; margin: 12px 0 6px; color: #cbd5e1; }
+    input[type="text"], input[type="email"], textarea, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #334155; background: #0b1220; color: #e2e8f0; }
+    textarea { min-height: 120px; resize: vertical; }
+    .actions { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+    button { background: #2563eb; color: white; border: 0; border-radius: 8px; padding: 10px 16px; cursor: pointer; }
+    button:disabled { background: #334155; cursor: not-allowed; }
+    .note { font-size: 0.9rem; color: #94a3b8; }
+    .success { color: #34d399; }
+    .error { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>We'd love your feedback</h1>
+    <p class="note">This takes less than a minute. Your email is optional and only used if you'd like a follow-up.</p>
+
+    <form id="feedbackForm">
+      <label for="eventName">Event (optional)</label>
+      <input id="eventName" name="eventName" type="text" placeholder="e.g., Homecoming 2025" />
+
+      <label for="rating">Overall rating</label>
+      <select id="rating" name="rating" required>
+        <option value="">Select a rating</option>
+        <option value="5">5 - Excellent</option>
+        <option value="4">4 - Good</option>
+        <option value="3">3 - Okay</option>
+        <option value="2">2 - Poor</option>
+        <option value="1">1 - Very poor</option>
+      </select>
+
+      <label for="comments">Comments</label>
+      <textarea id="comments" name="comments" placeholder="What went well? What could be better?"></textarea>
+
+      <label for="email">Email (optional)</label>
+      <input id="email" name="email" type="email" placeholder="you@example.com" />
+
+      <div class="actions">
+        <button id="submitBtn" type="submit">Submit feedback</button>
+        <span id="status" class="note"></span>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('feedbackForm');
+    const statusEl = document.getElementById('status');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Prefill event name from ?event= query param (optional)
+    const params = new URLSearchParams(window.location.search);
+    const eventParam = params.get('event');
+    if (eventParam) {
+      document.getElementById('eventName').value = eventParam;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = '';
+      submitBtn.disabled = true;
+
+      const payload = {
+        eventName: document.getElementById('eventName').value || null,
+        rating: document.getElementById('rating').value ? parseInt(document.getElementById('rating').value, 10) : null,
+        comments: document.getElementById('comments').value || null,
+        email: document.getElementById('email').value || null,
+      };
+
+      try {
+        const res = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          throw new Error(t || 'Request failed');
+        }
+        statusEl.textContent = 'Thanks! Your feedback was received.';
+        statusEl.className = 'note success';
+        form.reset();
+      } catch (err) {
+        statusEl.textContent = 'Sorry, something went wrong. Please try again later.';
+        statusEl.className = 'note error';
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

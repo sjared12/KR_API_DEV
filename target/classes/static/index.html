@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Webhooks Viewer</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    h1 { font-size: 1.5rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f6f6f6; text-align: left; }
+    .toolbar { display: flex; align-items: center; gap: .5rem; }
+    .status { font-size: .9rem; color: #666; }
+    .pill { border: 1px solid #ddd; padding: 2px 8px; border-radius: 999px; font-size: .8rem; }
+    .tabs { display: inline-flex; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-left: auto; }
+    .tab { padding: 6px 12px; cursor: pointer; background: #fafafa; border-right: 1px solid #eee; }
+    .tab:last-child { border-right: 0; }
+    .tab.active { background: #e7f0ff; font-weight: 600; }
+
+    /* Admin Login Overlay (matches dashboard style) */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1100;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(6px);
+    }
+    .login-overlay.active { display: flex; }
+    .login-box {
+      width: min(420px, 92vw);
+      background: linear-gradient(180deg, rgba(124, 90, 42, 0.85), rgba(63, 45, 20, 0.92));
+      border-radius: 12px; padding: 24px;
+      box-shadow: 0 20px 60px rgba(40,25,10,0.6);
+      border: 1px solid rgba(201,176,55,0.25);
+      color: #f8fafc;
+    }
+    .login-box h2 { margin: 0 0 12px 0; text-align: center; }
+    .login-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .login-box input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(201,176,55,0.25); background: rgba(63,45,20,0.75); color: #f8fafc; }
+    .login-box input:focus { outline: none; border-color: #c9b037; box-shadow: 0 0 0 3px rgba(201,176,55,0.15); background: rgba(63,45,20,0.92); }
+    .login-box button { width: 100%; margin-top: 8px; background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%); color: white; border: 0; border-radius: 8px; padding: 12px; cursor: pointer; font-size: 1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .login-error { display:none; margin-top: 10px; padding: 8px; border-radius: 8px; background: rgba(244, 67, 54, 0.3); border: 1px solid rgba(244, 67, 54, 0.5); color: #ef9a9a; text-align: center; }
+  </style>
+</head>
+<body>
+  <!-- Admin Login Overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+      <h2>Admin Login</h2>
+      <div class="login-grid">
+        <input id="adminUser" type="text" placeholder="Username" autocomplete="username" />
+        <input id="adminPass" type="password" placeholder="Password" autocomplete="current-password" />
+      </div>
+      <button id="loginBtn" type="button">Log In</button>
+      <div id="loginError" class="login-error">Invalid credentials</div>
+    </div>
+  </div>
+  <div class="toolbar">
+    <h1>Webhooks Viewer</h1>
+    <span id="count" class="pill">0</span>
+    <button id="refresh">Refresh</button>
+    <label><input type="checkbox" id="auto" checked /> Auto-refresh</label>
+    <span id="status" class="status"></span>
+    <div class="tabs">
+  <div id="tab-sales" class="tab active">Sales</div>
+  <div id="tab-scans" class="tab">Scans</div>
+  <div id="tab-square" class="tab">Square</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr id="head-row"></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    // Admin login overlay (uses APP_ADMIN creds); sends X-Admin-Auth on requests
+    let adminAuth = sessionStorage.getItem('adminAuth');
+    const loginOverlay = document.getElementById('loginOverlay');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+    function setLoginVisible(visible) { loginOverlay.classList.toggle('active', visible); }
+    function ensureLoggedIn() { if (!adminAuth) { setLoginVisible(true); return false; } setLoginVisible(false); return true; }
+    function makeHeaders(extra = {}) { const h = { ...extra }; if (adminAuth) h['X-Admin-Auth'] = adminAuth; return h; }
+    loginBtn.addEventListener('click', async () => {
+      const u = document.getElementById('adminUser').value.trim();
+      const p = document.getElementById('adminPass').value;
+      loginError.style.display = 'none';
+      if (!u || !p) { loginError.style.display = 'block'; return; }
+      adminAuth = 'Basic ' + btoa(u + ':' + p);
+      try {
+        // Probe auth against manual-sale guard without creating data
+        const res = await fetch('/webhook/simpletix/manual-sale', {
+          method: 'POST',
+          headers: makeHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ orderNumber: '__auth_probe__' })
+        });
+        if (!res.ok) throw new Error('Forbidden');
+      } catch (_) {
+        adminAuth = null; loginError.style.display = 'block'; return;
+      }
+      sessionStorage.setItem('adminAuth', adminAuth);
+      setLoginVisible(false);
+      renderHead();
+      fetchData();
+      startAuto();
+    });
+    const rows = document.getElementById('rows');
+    const count = document.getElementById('count');
+    const status = document.getElementById('status');
+    const refreshBtn = document.getElementById('refresh');
+    const auto = document.getElementById('auto');
+    const headRow = document.getElementById('head-row');
+    const tabSales = document.getElementById('tab-sales');
+    const tabScans = document.getElementById('tab-scans');
+    const tabSquare = document.getElementById('tab-square');
+
+    let mode = 'sales'; // 'sales' | 'scans' | 'square'
+
+    function setMode(newMode) {
+      mode = newMode;
+      tabSales.classList.toggle('active', mode === 'sales');
+      tabScans.classList.toggle('active', mode === 'scans');
+      tabSquare.classList.toggle('active', mode === 'square');
+      renderHead();
+      fetchData();
+    }
+
+    function renderHead() {
+      if (mode === 'sales') {
+        headRow.innerHTML = `
+          <th>ID</th>
+          <th>Received At</th>
+          <th>Order Number</th>
+          <th>Order Status</th>
+          <th>Order Date</th>
+          <th>First Name</th>
+          <th>Last Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Address</th>
+          <th>City</th>
+          <th>Postal Code</th>
+          <th>Country</th>
+          <th>Order Total</th>
+          <th>SubTotal</th>
+          <th>Tax</th>
+          <th>Service Fee</th>
+          <th>Discount</th>
+          <th>Transaction Type</th>
+          <th>Identifier</th>
+          <th>Application ID</th>
+        `;
+      } else if (mode === 'scans') {
+        headRow.innerHTML = `
+          <th>ID</th>
+          <th>Scanned At</th>
+          <th>Order Number</th>
+          <th>Order Item Title</th>
+          <th>Order Total</th>
+          <th>Price Paid</th>
+          <th>Original Price</th>
+          <th>Show ID</th>
+          <th>Show Start Local</th>
+          <th>Show Start UTC</th>
+          <th>Show Start TZ</th>
+          <th>Show End Local</th>
+          <th>Show End UTC</th>
+          <th>Show End TZ</th>
+          <th>Title</th>
+          <th>Venue ID</th>
+          <th>Event Type</th>
+          <th>Venue Name</th>
+          <th>Participant ID</th>
+          <th>Phone</th>
+          <th>Company</th>
+          <th>Email</th>
+          <th>Participant Billing Name</th>
+          <th>Barcode</th>
+          <th>Admitted On</th>
+          <th>Section</th>
+          <th>Row</th>
+          <th>Table</th>
+          <th>Seat</th>
+          <th>Ticket</th>
+        `;
+      } else {
+        headRow.innerHTML = `
+          <th>ID</th>
+          <th>Received At</th>
+          <th>Event Type</th>
+          <th>Payload</th>
+        `;
+      }
+    }
+
+    async function fetchData() {
+      if (!ensureLoggedIn()) return;
+      status.textContent = 'Loading...';
+      try {
+        let url;
+        if (mode === 'sales') {
+          url = '/webhook/simpletix/sales?limit=100';
+        } else if (mode === 'scans') {
+          url = '/webhook/simpletix/scans?limit=100';
+        } else {
+          url = '/api/square/events?limit=100';
+        }
+        const res = await fetch(url, { cache: 'no-store', headers: makeHeaders() });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        render(data);
+        status.textContent = 'Last updated ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function render(data) {
+      rows.innerHTML = '';
+      count.textContent = data.length;
+      if (mode === 'sales') {
+        for (const s of data) {
+          const tr = document.createElement('tr');
+          const fields = [
+            s.id ?? '',
+            s.receivedAt ?? '',
+            s.orderNumber ?? '',
+            s.orderStatus ?? '',
+            s.orderDate ?? '',
+            s.firstName ?? '',
+            s.lastName ?? '',
+            s.email ?? '',
+            s.phone ?? '',
+            s.address ?? '',
+            s.city ?? '',
+            s.postalCode ?? '',
+            s.country ?? '',
+            s.orderTotal ?? '',
+            s.subTotalAmount ?? '',
+            s.taxTotal ?? '',
+            s.serviceFeeTotal ?? '',
+            s.discountTotal ?? '',
+            s.transactionType ?? '',
+            s.identifier ?? '',
+            s.applicationId ?? ''
+          ];
+          for (const value of fields) {
+            const td = document.createElement('td');
+            td.textContent = value;
+            tr.appendChild(td);
+          }
+          rows.appendChild(tr);
+        }
+      } else if (mode === 'scans') {
+        for (const s of data) {
+          const tr = document.createElement('tr');
+          const fields = [
+            s.id ?? '',
+            s.scannedAt ?? '',
+            s.orderNumber ?? '',
+            s.orderItemTitle ?? '',
+            s.orderTotal ?? '',
+            s.pricePaid ?? '',
+            s.originalPrice ?? '',
+            s.showId ?? '',
+            s.showStartTimeLocal ?? '',
+            s.showStartTimeUTC ?? '',
+            s.showStartTimeZone ?? '',
+            s.showEndTimeLocal ?? '',
+            s.showEndTimeUTC ?? '',
+            s.showEndTimeZone ?? '',
+            s.title ?? '',
+            s.venueId ?? '',
+            s.eventTypeText ?? '',
+            s.venueName ?? '',
+            s.participantId ?? '',
+            s.phone ?? '',
+            s.company ?? '',
+            s.email ?? '',
+            s.participantBillingName ?? '',
+            s.barcode ?? '',
+            s.admittedOn ?? '',
+            s.section ?? '',
+            s.row ?? '',
+            s.tableName ?? '',
+            s.seat ?? '',
+            s.ticket ?? ''
+          ];
+          for (const value of fields) {
+            const td = document.createElement('td');
+            td.textContent = value;
+            tr.appendChild(td);
+          }
+          rows.appendChild(tr);
+        }
+      } else {
+        for (const s of data) {
+          const tr = document.createElement('tr');
+          const idTd = document.createElement('td');
+          idTd.textContent = s.id ?? '';
+          tr.appendChild(idTd);
+          const receivedTd = document.createElement('td');
+          receivedTd.textContent = s.receivedAt ?? '';
+          tr.appendChild(receivedTd);
+          const eventTypeTd = document.createElement('td');
+          eventTypeTd.textContent = s.eventType ?? '';
+          tr.appendChild(eventTypeTd);
+          const payloadTd = document.createElement('td');
+          const pre = document.createElement('pre');
+          pre.style.maxWidth = '400px';
+          pre.style.whiteSpace = 'pre-wrap';
+          pre.textContent = s.payload ?? '';
+          payloadTd.appendChild(pre);
+          tr.appendChild(payloadTd);
+          rows.appendChild(tr);
+        }
+      }
+    }
+
+    refreshBtn.addEventListener('click', fetchData);
+    tabSales.addEventListener('click', () => setMode('sales'));
+    tabScans.addEventListener('click', () => setMode('scans'));
+    tabSquare.addEventListener('click', () => setMode('square'));
+
+    let timer = null;
+    function startAuto() {
+      if (timer) clearInterval(timer);
+      if (auto.checked) {
+        timer = setInterval(fetchData, 5000);
+      }
+    }
+    auto.addEventListener('change', startAuto);
+
+    // Initial load gated by login
+    if (ensureLoggedIn()) {
+      renderHead();
+      fetchData();
+      startAuto();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manual Sale Entry</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; 
+      margin: 0;
+      min-height: 100vh;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #7c5a2a 0%, #c9b037 100%);
+      background-image: url('/background.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+      padding: 2rem 1rem;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(60,60,60,0.80) 0%, rgba(120,120,120,0.60) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .container { 
+      position: relative; 
+      z-index: 1; 
+      width: 100%;
+      max-width: 600px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    h1 { 
+      margin: 0 0 1.5rem 0;
+      text-align: center;
+      font-size: 2rem;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      font-size: 0.9rem;
+      opacity: 0.95;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+    input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .required {
+      color: #ffeb3b;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    button {
+      width: 100%;
+      padding: 1rem;
+      margin-top: 1rem;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #7c5a2a 0%, #c9b037 100%);
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .message {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+      display: none;
+    }
+    .message.success {
+      background: rgba(76, 175, 80, 0.3);
+      border: 1px solid rgba(76, 175, 80, 0.5);
+    }
+    .message.error {
+      background: rgba(244, 67, 54, 0.3);
+      border: 1px solid rgba(244, 67, 54, 0.5);
+    }
+    @media (max-width: 600px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Manual Sale Entry</h1>
+    <!-- Admin Login -->
+    <div id="loginBox" class="login-box" style="display:none; margin-bottom: 1rem;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap: 0.5rem;">
+        <input id="adminUser" type="text" placeholder="Username" autocomplete="username" />
+        <input id="adminPass" type="password" placeholder="Password" autocomplete="current-password" />
+      </div>
+      <button id="loginBtn" type="button" style="margin-top:0.75rem;">Log In</button>
+      <div id="loginError" class="message error" style="display:none; margin:0.75rem 0 0 0;">Invalid credentials</div>
+    </div>
+    <form id="saleForm">
+      <div class="form-group">
+        <label for="orderNumber">Order Number <span class="required">*</span></label>
+        <input type="text" id="orderNumber" name="orderNumber" required placeholder="e.g., MANUAL-001">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="firstName">First Name</label>
+          <input type="text" id="firstName" name="firstName" placeholder="John">
+        </div>
+        <div class="form-group">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" name="lastName" placeholder="Doe">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="john@example.com">
+      </div>
+
+      <div class="form-group">
+        <label for="phone">Phone</label>
+        <input type="tel" id="phone" name="phone" placeholder="555-123-4567">
+      </div>
+
+      <div class="form-group">
+        <label for="address">Address</label>
+        <input type="text" id="address" name="address" placeholder="123 Main St">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="city">City</label>
+          <input type="text" id="city" name="city" placeholder="Springfield">
+        </div>
+        <div class="form-group">
+          <label for="postalCode">Postal Code</label>
+          <input type="text" id="postalCode" name="postalCode" placeholder="12345">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="country">Country</label>
+        <input type="text" id="country" name="country" value="US" placeholder="US">
+      </div>
+
+      <div class="form-group">
+        <label for="organization">Organization</label>
+        <input type="text" id="organization" name="organization" placeholder="Company Name">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="orderTotal">Order Total ($)</label>
+          <input type="number" id="orderTotal" name="orderTotal" step="0.01" placeholder="25.00">
+        </div>
+        <div class="form-group">
+          <label for="subTotalAmount">Subtotal ($)</label>
+          <input type="number" id="subTotalAmount" name="subTotalAmount" step="0.01" placeholder="20.00">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="taxTotal">Tax ($)</label>
+          <input type="number" id="taxTotal" name="taxTotal" step="0.01" placeholder="2.00">
+        </div>
+        <div class="form-group">
+          <label for="serviceFeeTotal">Service Fee ($)</label>
+          <input type="number" id="serviceFeeTotal" name="serviceFeeTotal" step="0.01" placeholder="3.00">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="discountTotal">Discount ($)</label>
+        <input type="number" id="discountTotal" name="discountTotal" step="0.01" placeholder="0.00">
+      </div>
+
+      <div class="form-group">
+        <label for="transactionType">Transaction Type</label>
+        <select id="transactionType" name="transactionType">
+          <option value="Manual">Manual</option>
+          <option value="Cash">Cash</option>
+          <option value="Check">Check</option>
+          <option value="Comp">Comp</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <button type="submit" id="submitBtn">Submit Sale</button>
+      <div id="message" class="message"></div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('saleForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const message = document.getElementById('message');
+    const loginBox = document.getElementById('loginBox');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+    let adminAuth = sessionStorage.getItem('adminAuth');
+
+    function ensureLoggedIn() {
+      if (!adminAuth) {
+        loginBox.style.display = 'block';
+        return false;
+      }
+      loginBox.style.display = 'none';
+      return true;
+    }
+
+    loginBtn.addEventListener('click', async () => {
+      const u = document.getElementById('adminUser').value.trim();
+      const p = document.getElementById('adminPass').value;
+      loginError.style.display = 'none';
+      if (!u || !p) { loginError.style.display = 'block'; return; }
+      adminAuth = 'Basic ' + btoa(u + ':' + p);
+      // Probe with lightweight call: HEAD not implemented, use a guarded fetch with empty body
+      try {
+        const res = await fetch('/webhook/simpletix/manual-sale', {
+          method: 'POST',
+          headers: { 'X-Admin-Auth': adminAuth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderNumber: '__auth_probe__' })
+        });
+        if (res.status === 403) { adminAuth = null; throw new Error('Forbidden'); }
+      } catch (_) {
+        adminAuth = null;
+        loginError.style.display = 'block';
+        return;
+      }
+      sessionStorage.setItem('adminAuth', adminAuth);
+      loginBox.style.display = 'none';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      message.style.display = 'none';
+
+      const formData = new FormData(form);
+      const data = {};
+      formData.forEach((value, key) => {
+        if (value) {
+          data[key] = value;
+        }
+      });
+
+      try {
+        if (!ensureLoggedIn()) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Sale';
+          return;
+        }
+        const response = await fetch('/webhook/simpletix/manual-sale', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Auth': adminAuth,
+          },
+          body: JSON.stringify(data)
+        });
+
+        const text = await response.text();
+        
+        if (response.ok) {
+          message.className = 'message success';
+          message.textContent = text;
+          message.style.display = 'block';
+          form.reset();
+          document.getElementById('country').value = 'US';
+          document.getElementById('transactionType').value = 'Manual';
+        } else {
+          message.className = 'message error';
+          message.textContent = 'Error: ' + text;
+          message.style.display = 'block';
+          if (response.status === 401 || response.status === 403) {
+            sessionStorage.removeItem('adminAuth');
+            adminAuth = null;
+            ensureLoggedIn();
+          }
+        }
+      } catch (error) {
+        message.className = 'message error';
+        message.textContent = 'Error: ' + error.message;
+        message.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Sale';
+      }
+    });
+  </script>
+</body>
+</html>

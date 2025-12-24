@@ -1,0 +1,24 @@
+name: logapi
+services:
+  - name: logapi
+    source_dir: .
+    build_command: mvn -B -DskipTests package
+    run_command: java -jar target/logapi-0.0.1-SNAPSHOT.jar
+    envs:
+      - key: DB_URL
+        scope: RUN_TIME
+      - key: DB_USERNAME
+        scope: RUN_TIME
+      - key: DB_PASSWORD
+        scope: RUN_TIME
+      - key: HMAC_SECRET
+        scope: RUN_TIME
+      - key: RATE_LIMIT_PERMITS
+        scope: RUN_TIME
+      - key: SERVER_PORT
+        scope: RUN_TIME
+      - key: MANAGEMENT_PORT
+        scope: RUN_TIME
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs

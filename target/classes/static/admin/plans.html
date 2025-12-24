@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payment Plans</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 20px; }
+    h1 { margin-bottom: 0.5rem; }
+    .controls { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+    label { display: block; font-size: 0.9rem; color: #333; }
+    input, select { padding: 6px 8px; font-size: 1rem; }
+    button { padding: 8px 12px; background: #0d6efd; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f5f5f5; text-align: left; }
+    .badge { padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
+    .status-ACTIVE { background: #e7f5ff; color: #0c63e4; }
+    .status-COMPLETE { background: #e6fcf5; color: #087f5b; }
+    .status-CANCELED { background: #fff5f5; color: #c92a2a; }
+    .status-ERROR { background: #fff4e6; color: #d9480f; }
+    .pager { margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center; }
+  </style>
+</head>
+<body>
+  <h1>Payment Plans</h1>
+  <div class="controls">
+    <div>
+      <label for="studentId">Student ID</label>
+      <input id="studentId" placeholder="e.g. 12345" />
+    </div>
+    <div>
+      <label for="status">Status</label>
+      <select id="status">
+        <option value="">All</option>
+        <option>ACTIVE</option>
+        <option>COMPLETE</option>
+        <option>CANCELED</option>
+        <option>ERROR</option>
+      </select>
+    </div>
+    <div>
+      <label for="size">Page size</label>
+      <select id="size">
+        <option>25</option>
+        <option>50</option>
+        <option>100</option>
+      </select>
+    </div>
+    <div>
+      <button id="apply">Apply</button>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Student</th>
+        <th>Email</th>
+        <th>Cadence</th>
+        <th>Total Due</th>
+        <th>Installment</th>
+        <th>Remaining</th>
+        <th>Status</th>
+        <th>Invoice</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="pager">
+    <button id="prev">Prev</button>
+    <span id="pageInfo"></span>
+    <button id="next">Next</button>
+  </div>
+
+  <script>
+    let page = 0;
+
+    document.getElementById('apply').addEventListener('click', () => { page = 0; load(); });
+    document.getElementById('prev').addEventListener('click', () => { if (page>0){ page--; load(); }});
+    document.getElementById('next').addEventListener('click', () => { page++; load(); });
+
+    async function load() {
+      const studentId = document.getElementById('studentId').value.trim();
+      const status = document.getElementById('status').value;
+      const size = document.getElementById('size').value;
+      const params = new URLSearchParams({ page, size });
+      if (studentId) params.set('studentId', studentId);
+      if (status) params.set('status', status);
+      const res = await fetch(`/api/plans?${params.toString()}`, { credentials: 'include' });
+      if (!res.ok) {
+        alert('Failed to load plans: ' + res.status);
+        return;
+      }
+      const data = await res.json();
+      render(data);
+    }
+
+    function render(pageData) {
+      const tbody = document.getElementById('rows');
+      tbody.innerHTML = '';
+      (pageData.content || []).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.id}</td>
+          <td>${escapeHtml(p.studentId)}</td>
+          <td>${escapeHtml(p.email)}</td>
+          <td>${p.cadence}</td>
+          <td>$${fmt(p.totalDue)}</td>
+          <td>$${fmt(p.installmentAmount)}</td>
+          <td>$${fmt(p.remaining)}</td>
+          <td><span class="badge status-${p.status}">${p.status}</span></td>
+          <td>${p.invoiceUrl ? `<a href="${p.invoiceUrl}" target="_blank">Open</a>` : ''}</td>
+          <td>${p.createdAt || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      const info = document.getElementById('pageInfo');
+      info.textContent = `Page ${pageData.number + 1} of ${pageData.totalPages || 1} • ${pageData.totalElements} total`;
+      // Disable/enable pager buttons
+      document.getElementById('prev').disabled = pageData.number <= 0;
+      document.getElementById('next').disabled = pageData.number >= (pageData.totalPages - 1);
+    }
+
+    function fmt(n) { return (n ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function escapeHtml(t) { return (t || '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[s])); }
+
+    load();
+  </script>
+</body>
+</html>

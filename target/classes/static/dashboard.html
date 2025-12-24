@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ticket Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; 
+      margin: 0;
+      min-height: 100vh;
+      color: white;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      background: linear-gradient(135deg, #7c5a2a 0%, #c9b037 100%);
+      background-image: url('/background.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+    }
+    body::before { /* dark overlay like gate */
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(60,60,60,0.80) 0%, rgba(120,120,120,0.60) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .page { 
+      position: relative; 
+      z-index: 1; 
+      width: 100%;
+      max-width: 1200px;
+      padding: clamp(1rem, 3vw, 2rem);
+    }
+    .branding { text-align: center; margin: 0 0 clamp(1rem, 3vw, 2rem) 0; }
+    .brand-top { font-size: clamp(1.4rem, 4.5vw, 3.5rem); font-weight: 600; color: #fffbe6; text-shadow: 0 2px 8px #7c5a2a; letter-spacing: 1px; }
+    .brand-logo { width: clamp(200px, 40vw, 560px); max-height: clamp(120px, 40vh, 420px); object-fit: contain; filter: drop-shadow(0 6px 24px rgba(0,0,0,0.4)); display: inline-block; margin: clamp(0.5rem, 2vw, 1rem) auto; }
+    .brand-bottom { font-size: clamp(1.6rem, 5vw, 4rem); font-weight: 700; color: #fff; text-shadow: 0 2px 8px #7c5a2a; letter-spacing: 2px; }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: clamp(1rem, 2vw, 1.5rem);
+      margin-top: clamp(0.5rem, 2vw, 1.5rem);
+      justify-content: center; /* center tracks when possible */
+      justify-items: center;   /* center cards inside tracks */
+    }
+    @media (min-width: 768px) {
+      .summary {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    @media (min-width: 1200px) {
+      .summary {
+        grid-template-columns: repeat(6, 1fr);
+      }
+    }
+    .card.wide {
+      grid-column: span 2;
+    }
+    .card { 
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: clamp(10px, 2vw, 16px);
+      padding: clamp(1rem, 2.5vw, 2rem);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+    /* Keep regular cards from stretching edge-to-edge; allow wide cards to span */
+    .summary .card { width: 100%; }
+    .summary .card:not(.wide) { max-width: 280px; }
+    .card:hover { transform: translateY(-5px); }
+    .card h2 { 
+      margin: 0 0 0.75rem 0; 
+      font-size: clamp(0.9rem, 1.2vw, 1.2rem);
+      font-weight: 500;
+      opacity: 0.95;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .card .count { 
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 800;
+      color: #fffbe6;
+      text-shadow: 0 2px 10px rgba(124,90,42,0.3);
+    }
+    .last-updated { text-align: center; margin-top: clamp(1rem, 2vw, 2rem); opacity: 0.9; font-size: clamp(0.8rem, 1.2vw, 1rem); }
+
+    /* Error-only status indicator (hidden by default) */
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      color: white;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+    }
+    .status-indicator.error { display: flex; background: rgba(255, 77, 79, 0.25); box-shadow: 0 4px 16px rgba(255, 77, 79, 0.25); }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4d4f; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    
+    /* Press Box Announcement Button */
+    .pressbox-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: #fffbe6;
+      border: none;
+      padding: 16px 32px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(124, 90, 42, 0.4);
+      transition: all 0.3s ease;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pressbox-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(124, 90, 42, 0.5);
+    }
+    .pressbox-btn:active {
+      transform: translateY(-1px);
+    }
+    
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(5px);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: linear-gradient(135deg, rgba(60,60,60,0.95) 0%, rgba(120,120,120,0.85) 100%);
+      padding: 2.5rem;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 2rem;
+      color: white;
+      cursor: pointer;
+      border: none;
+      background: none;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .modal-close:hover {
+      opacity: 1;
+    }
+    .modal h2 {
+      margin: 0 0 1.5rem 0;
+      color: white;
+      font-size: 1.8rem;
+    }
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: white;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    .form-group input::placeholder, .form-group textarea::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: #fffbe6;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 1rem;
+    }
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(124, 90, 42, 0.4);
+    }
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .message {
+      margin-top: 1rem;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+      display: none;
+    }
+    .message.success {
+      background: rgba(76, 175, 80, 0.3);
+      border: 1px solid rgba(76, 175, 80, 0.5);
+      color: #a5d6a7;
+    }
+    .message.error {
+      background: rgba(244, 67, 54, 0.3);
+      border: 1px solid rgba(244, 67, 54, 0.5);
+      color: #ef9a9a;
+    }
+
+    /* Admin Login Overlay */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1100;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(6px);
+    }
+    .login-overlay.active { display: flex; }
+    .login-box {
+      width: min(420px, 92vw);
+      background: linear-gradient(180deg, rgba(124, 90, 42, 0.85), rgba(63, 45, 20, 0.92));
+      border-radius: 12px; padding: 24px;
+      box-shadow: 0 20px 60px rgba(40,25,10,0.6);
+      border: 1px solid rgba(201,176,55,0.25);
+      color: #f8fafc;
+    }
+    .login-box h2 { margin: 0 0 12px 0; text-align: center; }
+    .login-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    .login-box input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(201,176,55,0.25); background: rgba(63,45,20,0.75); color: #f8fafc; }
+    .login-box input:focus { outline: none; border-color: #c9b037; box-shadow: 0 0 0 3px rgba(201,176,55,0.15); background: rgba(63,45,20,0.92); }
+    .login-box button { width: 100%; margin-top: 8px; background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%); color: white; border: 0; border-radius: 8px; padding: 12px; cursor: pointer; font-size: 1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .login-error { display:none; margin-top: 10px; padding: 8px; border-radius: 8px; background: rgba(244, 67, 54, 0.3); border: 1px solid rgba(244, 67, 54, 0.5); color: #ef9a9a; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="status-indicator"><div class="status-dot"></div><span id="status-text">Connection Error</span></div>
+
+  <!-- Admin Login Overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+      <h2>Admin Login</h2>
+      <div class="login-grid">
+        <input id="adminUser" type="text" placeholder="Username" autocomplete="username" />
+        <input id="adminPass" type="password" placeholder="Password" autocomplete="current-password" />
+      </div>
+      <button id="loginBtn" type="button">Log In</button>
+      <div id="loginError" class="login-error">Invalid credentials</div>
+    </div>
+  </div>
+  
+  <!-- Press Box Announcement Button -->
+  <button class="pressbox-btn" id="openModal">
+    <span>📢</span>
+    <span>Press Box Announcement</span>
+  </button>
+  
+  <!-- Modal -->
+  <div class="modal" id="announcementModal">
+    <div class="modal-content">
+      <button class="modal-close" id="closeModal">&times;</button>
+      <h2>Send Announcement to Press Box</h2>
+      <form id="announcementForm">
+        <div class="form-group">
+          <label for="announcementName">Name <span style="color: #ffeb3b;">*</span></label>
+          <input type="text" id="announcementName" name="name" required placeholder="e.g., John Smith">
+        </div>
+        <div class="form-group">
+          <label for="announcementMessage">Message (Optional)</label>
+          <textarea id="announcementMessage" name="message" placeholder="Optional announcement message..."></textarea>
+        </div>
+        <button type="submit" class="btn-submit" id="submitAnnouncement">Send Announcement</button>
+        <div id="announcementStatus" class="message"></div>
+      </form>
+    </div>
+  </div>
+  
+  <div class="page">
+    <!-- Branding removed as requested -->
+  <div class="summary">
+    <div class="card">
+      <h2>Tickets Sold</h2>
+      <div id="sold" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Tickets Given Away</h2>
+      <div id="given-away" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Total Checked In</h2>
+      <div id="checkedin" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Not Yet Scanned</h2>
+      <div id="not-scanned" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Last 5 Minutes</h2>
+      <div id="recent" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Check-In Rate</h2>
+      <div id="rate" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Total Orders</h2>
+      <div id="total-orders" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Total Items Sold</h2>
+      <div id="square-total-items" class="count">...</div>
+    </div>
+    <div class="card">
+      <h2>Orders Per Minute</h2>
+      <div id="orders-per-minute" class="count">...</div>
+    </div>
+    <div class="card">
+  <h2>Concession Sales</h2>
+      <div id="square-total-sales" class="count">...</div>
+    </div>
+    <div class="card wide">
+      <h2>Top 5 Items</h2>
+      <ul id="top-items" style="list-style:none; padding:0; margin:0;">
+        <li>Loading...</li>
+      </ul>
+    </div>
+      <div class="card wide">
+        <h2>Administration Scans</h2>
+        <ul id="admin-scans" style="list-style:none; padding:0; margin:0; text-align:left;">
+          <li>Loading...</li>
+        </ul>
+      </div>
+  </div>
+  <div class="last-updated">Last updated: <span id="timestamp">...</span></div>
+  </div>
+  <script>
+    // Admin login management
+    let adminAuth = sessionStorage.getItem('adminAuth');
+    const loginOverlay = document.getElementById('loginOverlay');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginError = document.getElementById('loginError');
+    let refreshTimer = null;
+
+    function setLoginVisible(visible) {
+      loginOverlay.classList.toggle('active', visible);
+    }
+    function ensureLoggedIn() {
+      if (!adminAuth) { setLoginVisible(true); return false; }
+      setLoginVisible(false); return true;
+    }
+    function makeHeaders(extra = {}) {
+      const h = { ...extra };
+      if (adminAuth) h['X-Admin-Auth'] = adminAuth;
+      return h;
+    }
+
+    loginBtn.addEventListener('click', async () => {
+      const u = document.getElementById('adminUser').value.trim();
+      const p = document.getElementById('adminPass').value;
+      loginError.style.display = 'none';
+      if (!u || !p) { loginError.style.display = 'block'; return; }
+      adminAuth = 'Basic ' + btoa(u + ':' + p);
+      try {
+        // Probe auth against manual-sale guard without creating data
+        const res = await fetch('/webhook/simpletix/manual-sale', {
+          method: 'POST',
+          headers: makeHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify({ orderNumber: '__auth_probe__' })
+        });
+        if (!res.ok) throw new Error('Forbidden');
+      } catch (_) {
+        adminAuth = null;
+        loginError.style.display = 'block';
+        return;
+      }
+      sessionStorage.setItem('adminAuth', adminAuth);
+      setLoginVisible(false);
+      // Start updates if not already running
+      if (!refreshTimer) {
+        updateAll();
+        refreshTimer = setInterval(updateAll, 5000);
+      }
+    });
+    const statusIndicator = document.querySelector('.status-indicator');
+    const statusText = document.getElementById('status-text');
+    function showStatusError(message = 'Connection Error') { statusText.textContent = message; statusIndicator.classList.add('error'); }
+    function hideStatusError() { statusIndicator.classList.remove('error'); }    async function fetchSummary() {
+      try {
+        const res = await fetch('/webhook/simpletix/dashboard/summary', { headers: makeHeaders() });
+        if (!res.ok) return false;
+        const data = await res.json();
+  document.getElementById('sold').textContent = data.ticketsSold ?? '0';
+  document.getElementById('checkedin').textContent = data.ticketsCheckedIn ?? '0';
+  document.getElementById('not-scanned').textContent = data.ticketsNotScanned ?? '0';
+  document.getElementById('given-away').textContent = data.ticketsGivenAway ?? '0';
+        return true;
+      } catch (e) {
+        console.error('Error fetching summary:', e);
+        return false;
+      }
+    }
+    
+    async function fetchRecentScans() {
+      try {
+        const res = await fetch('/webhook/simpletix/dashboard/recent-stats', { cache: 'no-store', headers: makeHeaders() });
+        if (!res.ok) return false;
+        const stats = await res.json();
+        
+        document.getElementById('recent').textContent = stats.recentCount ?? '0';
+        document.getElementById('rate').textContent = (stats.ratePerMinute ?? 0) + '/min';
+        return true;
+      } catch (e) {
+        console.error('Error fetching recent scans:', e);
+        return false;
+      }
+    }
+    
+    function updateTimestamp() {
+      const now = new Date();
+      document.getElementById('timestamp').textContent = now.toLocaleTimeString();
+    }
+    
+    async function fetchTopItems() {
+      try {
+        const res = await fetch('/api/square/items/top5', { headers: makeHeaders() });
+        if (!res.ok) return false;
+        const items = await res.json();
+        const ul = document.getElementById('top-items');
+        ul.innerHTML = '';
+        if (items.length === 0) {
+          ul.innerHTML = '<li>No data</li>';
+        } else {
+          items.forEach(item => {
+            ul.innerHTML += `<li><strong>${item.name}</strong>: ${item.quantity}</li>`;
+          });
+        }
+        return true;
+      } catch (e) {
+        console.error('Error fetching top items:', e);
+        return false;
+      }
+    }
+
+    async function fetchSquareStats() {
+      try {
+        const res = await fetch('/api/square/stats', { headers: makeHeaders() });
+        if (!res.ok) return false;
+        const stats = await res.json();
+        document.getElementById('square-total-items').textContent = stats.totalItemsSold ?? '0';
+        document.getElementById('square-total-sales').textContent = '$' + (stats.totalSalesAmount ?? '0.00');
+        // Ticket revenue for the band show
+        let ticketRevenue = stats.ticketRevenue ?? '0.00';
+        if (typeof ticketRevenue === 'object' && ticketRevenue !== null && 'value' in ticketRevenue) {
+          ticketRevenue = ticketRevenue.value;
+        }
+        let ticketRevenueDiv = document.getElementById('ticket-revenue');
+        if (!ticketRevenueDiv) {
+          // Insert after total sales card
+          const salesCard = document.getElementById('square-total-sales').closest('.card');
+          ticketRevenueDiv = document.createElement('div');
+          ticketRevenueDiv.className = 'card';
+          ticketRevenueDiv.innerHTML = '<h2>Ticket Revenue</h2><div id="ticket-revenue" class="count">$' + ticketRevenue + '</div>';
+          salesCard.parentNode.insertBefore(ticketRevenueDiv, salesCard.nextSibling);
+        } else {
+          ticketRevenueDiv.textContent = '$' + ticketRevenue;
+        }
+        return true;
+      } catch (e) {
+        console.error('Error fetching square stats:', e);
+        return false;
+      }
+    }
+
+    async function fetchOrdersPerMinute() {
+      try {
+        const res = await fetch('/api/square/stats/orders-per-minute?minutes=10', { headers: makeHeaders() });
+        if (!res.ok) return false;
+        const data = await res.json();
+        document.getElementById('orders-per-minute').textContent = (data.ordersPerMinute ?? 0) + '/min';
+        return true;
+      } catch (e) {
+        console.error('Error fetching orders per minute:', e);
+        return false;
+      }
+    }
+
+    async function fetchTotalOrders() {
+      try {
+        const res = await fetch('/api/square/stats/total-orders', { headers: makeHeaders() });
+        if (!res.ok) return false;
+        const data = await res.json();
+        document.getElementById('total-orders').textContent = data.totalOrders ?? '0';
+        return true;
+      } catch (e) {
+        console.error('Error fetching total orders:', e);
+        return false;
+      }
+    }
+
+    // Try to parse admittedOn into a Date with a few common formats
+    function parseAdmittedOn(str) {
+      if (!str || typeof str !== 'string') return null;
+      // First, try native Date parsing (handles ISO and many standard formats)
+      let d = new Date(str);
+      if (!isNaN(d)) return d;
+      // Try replacing space between date/time with 'T'
+      d = new Date(str.replace(' ', 'T'));
+      if (!isNaN(d)) return d;
+      // Try MM/DD/YYYY HH:mm[:ss]
+      const m = str.match(/^(\d{1,2})[\/](\d{1,2})[\/](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+      if (m) {
+        let year = parseInt(m[3], 10);
+        if (year < 100) year += 2000;
+        const month = parseInt(m[1], 10) - 1;
+        const day = parseInt(m[2], 10);
+        const hour = parseInt(m[4], 10);
+        const minute = parseInt(m[5], 10);
+        const second = m[6] ? parseInt(m[6], 10) : 0;
+        return new Date(year, month, day, hour, minute, second);
+      }
+      return null;
+    }
+
+    async function fetchAdminScans() {
+      try {
+        const res = await fetch('/webhook/simpletix/dashboard/admin-scans?section=administration&limit=25', { cache: 'no-store', headers: makeHeaders() });
+        if (!res.ok) return false;
+        const scans = await res.json();
+        const ul = document.getElementById('admin-scans');
+        ul.innerHTML = '';
+        if (!scans || scans.length === 0) {
+          ul.innerHTML = '<li>No administration scans yet</li>';
+        } else {
+          // Use viewer's local timezone; fallback to Eastern if unavailable
+          const userTZ = (Intl.DateTimeFormat().resolvedOptions().timeZone) || 'America/New_York';
+          const fmt = new Intl.DateTimeFormat(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: userTZ,
+          });
+          scans.forEach(s => {
+            const dt = parseAdmittedOn(s.admittedOn) || (s.scannedAt ? new Date(s.scannedAt) : null);
+            const time = dt ? fmt.format(dt) : '';
+            const who = s.name && s.name.trim() ? s.name : 'Guest';
+            ul.innerHTML += `<li>${time} — ${who}</li>`;
+          });
+        }
+        return true;
+      } catch (e) {
+        console.error('Error fetching admin scans:', e);
+        return false;
+      }
+    }
+
+    async function updateAll() {
+      const ok1 = await fetchSummary();
+      const ok2 = await fetchRecentScans();
+      const ok3 = await fetchTopItems();
+      const ok4 = await fetchSquareStats();
+      const ok5 = await fetchOrdersPerMinute();
+      const ok6 = await fetchTotalOrders();
+      const ok7 = await fetchAdminScans();
+      if (ok1 && ok2 && ok3 && ok4 && ok5 && ok6 && ok7) { hideStatusError(); } else { showStatusError(); }
+      updateTimestamp();
+    }
+
+    // Initial load gated by admin login
+    if (ensureLoggedIn()) {
+      updateAll();
+      refreshTimer = setInterval(updateAll, 5000);
+    }
+    
+    // Press Box Announcement Modal Logic
+    const modal = document.getElementById('announcementModal');
+    const openModalBtn = document.getElementById('openModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const announcementForm = document.getElementById('announcementForm');
+    const submitBtn = document.getElementById('submitAnnouncement');
+  const messageDiv = document.getElementById('announcementStatus');
+    
+    openModalBtn.addEventListener('click', () => {
+      modal.classList.add('active');
+      document.getElementById('announcementName').focus();
+    });
+    
+    closeModalBtn.addEventListener('click', () => {
+      modal.classList.remove('active');
+      announcementForm.reset();
+      messageDiv.style.display = 'none';
+    });
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+        announcementForm.reset();
+        messageDiv.style.display = 'none';
+      }
+    });
+    
+    // Handle form submission
+    announcementForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+      messageDiv.style.display = 'none';
+      
+      const formData = {
+        name: document.getElementById('announcementName').value.trim(),
+        message: document.getElementById('announcementMessage').value.trim() || null
+      };
+      
+      try {
+        const response = await fetch('/api/pressbox/announcement', {
+          method: 'POST',
+          headers: makeHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          messageDiv.className = 'message success';
+          messageDiv.textContent = '✓ Announcement sent successfully!';
+          messageDiv.style.display = 'block';
+          
+          // Reset form after 1 second
+          setTimeout(() => {
+            announcementForm.reset();
+            messageDiv.style.display = 'none';
+            modal.classList.remove('active');
+          }, 1500);
+        } else {
+          // Show generic error without exposing server details
+          messageDiv.className = 'message error';
+          messageDiv.textContent = 'Unable to send announcement. Please try again.';
+          messageDiv.style.display = 'block';
+        }
+      } catch (error) {
+        // Generic network/error message only
+        messageDiv.className = 'message error';
+        messageDiv.textContent = 'Unable to send announcement. Please try again.';
+        messageDiv.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Announcement';
+      }
+    });
+  </script>
+</body>
+</html>

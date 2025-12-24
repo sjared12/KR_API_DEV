@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Analytics</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/modern-normalize/2.0.0/modern-normalize.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg:#0b1020; --fg:#e6e9f0; --muted:#9aa3b2; --card:#131936; --accent:#4cc9f0; }
+    body { background:var(--bg); color:var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    header { padding:16px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #233; }
+    h1 { font-size:18px; margin:0; }
+    .container { padding:20px; max-width:1200px; margin:0 auto; }
+    .filters { display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin-bottom:16px; }
+    .card { background:var(--card); border:1px solid #233; border-radius:12px; padding:16px; }
+    .kpis { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin-bottom:16px; }
+    .kpi h3 { margin:0 0 4px 0; font-size:12px; color:var(--muted); }
+    .kpi .value { font-size:22px; font-weight:600; }
+    .grid { display:grid; grid-template-columns: 2fr 1fr; gap:12px; }
+    label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input, button, select { background:#0e1430; color:var(--fg); border:1px solid #2a335a; border-radius:8px; padding:8px 10px; }
+    button { cursor:pointer; background:linear-gradient(135deg, #3a0ca3, #4895ef); border:none; }
+    canvas { width:100%; height:320px; }
+    .footer { margin-top:24px; text-align:center; color:var(--muted); font-size:12px; }
+    @media (max-width: 980px){ .grid{ grid-template-columns:1fr; } .kpis{ grid-template-columns: repeat(2, 1fr);} }
+
+    /* Generic error banner */
+    .error-banner { position:fixed; top:8px; left:50%; transform:translateX(-50%); background:#3a0ca3; border:1px solid #5f58c9; color:#fff; padding:10px 14px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.35); display:none; z-index:1000; }
+    .error-banner.error { background:#8b1e3f; border-color:#c44963; }
+    .error-banner .msg { margin-right:10px; }
+    .error-banner button { background:transparent; color:#fff; border:0; cursor:pointer; font-weight:600; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Interactive Analytics</h1>
+    <nav>
+      <a href="/" style="color:var(--muted); text-decoration:none;">Home</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div id="errorBanner" class="error-banner error"><span class="msg">Service temporarily unavailable. Please try again later.</span><button id="dismissError">Dismiss</button></div>
+    <div class="filters card">
+      <div>
+        <label for="start">Start date</label>
+        <input type="date" id="start" />
+      </div>
+      <div>
+        <label for="end">End date</label>
+        <input type="date" id="end" />
+      </div>
+      <div>
+        <label for="dayForHourly">Hourly scans date</label>
+        <input type="date" id="dayForHourly" />
+      </div>
+      <div>
+        <label for="autoRefresh">Auto refresh</label>
+        <select id="autoRefresh">
+          <option value="0">Off</option>
+          <option value="30">30s</option>
+          <option value="60">60s</option>
+        </select>
+      </div>
+      <div>
+        <label for="ticketsPatterns">Ticket keywords</label>
+        <input type="text" id="ticketsPatterns" placeholder="ticket" />
+      </div>
+      <div>
+        <label for="concessionsPatterns">Concessions keywords</label>
+        <input type="text" id="concessionsPatterns" placeholder="beer, hot dog, concession, soda, snack" />
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button id="apply">Apply</button>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="card kpi"><h3>Tickets Sold</h3><div class="value" id="kpiSold">-</div></div>
+      <div class="card kpi"><h3>Tickets Given Away</h3><div class="value" id="kpiGiven">-</div></div>
+      <div class="card kpi"><h3>Checked In</h3><div class="value" id="kpiChecked">-</div></div>
+      <div class="card kpi"><h3>Square Revenue</h3><div class="value" id="kpiRevenue">-</div></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3 style="margin-top:0">Daily Overview</h3>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button id="exportDailyCsv">Download CSV</button>
+          <button id="exportDailyPng">Download PNG</button>
+        </div>
+        <canvas id="dailyChart"></canvas>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Top Items</h3>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button id="exportTopCsv">Download CSV</button>
+          <button id="exportTopPng">Download PNG</button>
+        </div>
+        <canvas id="topItemsChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin-top:0">Hourly Scans</h3>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <button id="exportHourlyPng">Download PNG</button>
+      </div>
+      <canvas id="hourlyChart"></canvas>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin-top:0">Revenue Breakdown</h3>
+      <canvas id="breakdownChart"></canvas>
+    </div>
+
+    <div class="footer">Powered by KR_API • Chart.js</div>
+  </div>
+
+  <script>
+    const fmtMoney = (v) => new Intl.NumberFormat(undefined, { style:'currency', currency:'USD'}).format(Number(v ?? 0));
+
+  const state = { start:null, end:null, dayForHourly:null, charts:{}, intervalId:null, cachedDaily:[], cachedTop:[] };
+
+    function qs(id){ return document.getElementById(id); }
+    function iso(d){ return d ? d.toISOString().slice(0,10) : null; }
+
+    function defaultDates(){
+      const today = new Date();
+      const start = new Date(today.getTime() - 29*86400000);
+      qs('start').value = iso(start);
+      qs('end').value = iso(today);
+      qs('dayForHourly').value = iso(today);
+    }
+
+    // Centralized fetch with generic error handling
+    function showError(msg='Service temporarily unavailable. Please try again later.'){
+      const b = qs('errorBanner'); b.querySelector('.msg').textContent = msg; b.style.display = 'inline-flex';
+    }
+    function hideError(){ const b = qs('errorBanner'); b.style.display = 'none'; }
+    qs('dismissError').addEventListener('click', hideError);
+
+    async function fetchJSON(url){
+      try{
+        const res = await fetch(url, { cache:'no-store' });
+        if(!res.ok){ throw new Error('HTTP '+res.status); }
+        return await res.json();
+      }catch(e){
+        console.debug('API request failed', { url, error: e?.message });
+        showError();
+        return null;
+      }
+    }
+
+    function buildQuery(){
+      const p = new URLSearchParams();
+      const s = qs('start').value; const e = qs('end').value;
+      if(s) p.set('start', s); if(e) p.set('end', e);
+      const t = qs('ticketsPatterns').value.trim(); if(t) p.set('tickets', t);
+      const c = qs('concessionsPatterns').value.trim(); if(c) p.set('concessions', c);
+      return p.toString() ? ('?' + p.toString()) : '';
+    }
+
+    async function loadSummary(){
+      const data = await fetchJSON('/api/analytics/summary' + buildQuery());
+      if(!data) return;
+      qs('kpiSold').textContent = data.ticketsSold;
+      qs('kpiGiven').textContent = data.ticketsGivenAway;
+      qs('kpiChecked').textContent = data.ticketsCheckedIn;
+      qs('kpiRevenue').textContent = fmtMoney(data.squareTotalSales);
+    }
+
+    async function loadDailyChart(){
+  const rows = await fetchJSON('/api/analytics/sales-by-day' + buildQuery());
+  if(!rows) return;
+      state.cachedDaily = rows;
+      const labels = rows.map(r => r.date);
+      const sold = rows.map(r => r.ticketsSold);
+      const given = rows.map(r => r.ticketsGivenAway);
+      const scans = rows.map(r => r.ticketsCheckedIn);
+      const revenue = rows.map(r => Number(r.squareRevenue));
+
+      const ctx = qs('dailyChart').getContext('2d');
+      state.charts.daily && state.charts.daily.destroy();
+      state.charts.daily = new Chart(ctx, {
+        type:'line',
+        data:{ labels, datasets:[
+          { label:'Tickets Sold', data:sold, borderColor:'#4cc9f0', backgroundColor:'rgba(76,201,240,0.2)', tension:0.2 },
+          { label:'Given Away', data:given, borderColor:'#f72585', backgroundColor:'rgba(247,37,133,0.2)', tension:0.2 },
+          { label:'Checked In', data:scans, borderColor:'#90be6d', backgroundColor:'rgba(144,190,109,0.2)', tension:0.2, yAxisID:'y1' },
+          { label:'Revenue ($)', data:revenue.map(v=> (v/100).toFixed(2)), borderColor:'#ffd166', backgroundColor:'rgba(255,209,102,0.2)', tension:0.2, yAxisID:'y2' },
+        ]},
+        options:{
+          responsive:true,
+          interaction:{ mode:'index', intersect:false },
+          scales:{
+            y:{ beginAtZero:true, title:{ display:true, text:'Tickets' } },
+            y1:{ beginAtZero:true, position:'right', grid:{ drawOnChartArea:false }, title:{ display:true, text:'Scans' } },
+            y2:{ beginAtZero:true, position:'right', grid:{ drawOnChartArea:false }, title:{ display:true, text:'Revenue ($)' } }
+          },
+          plugins:{ legend:{ labels:{ color:'#e6e9f0' } } },
+          onClick: async (evt) => {
+            const points = state.charts.daily.getElementsAtEventForMode(evt, 'nearest', { intersect:true }, true);
+            if(points.length){
+              const idx = points[0].index;
+              const date = labels[idx];
+              await showDayDetail(date);
+            }
+          }
+        }
+      });
+    }
+
+    async function loadTopItems(){
+  const rows = await fetchJSON('/api/analytics/top-items' + buildQuery());
+  if(!rows) return;
+      state.cachedTop = rows;
+      const labels = rows.map(r => r.name);
+      const qty = rows.map(r => r.quantity);
+      const revenue = rows.map(r => Number(r.revenue));
+      const ctx = qs('topItemsChart').getContext('2d');
+      state.charts.top && state.charts.top.destroy();
+      state.charts.top = new Chart(ctx, {
+        type:'bar',
+        data:{ labels, datasets:[
+          { label:'Quantity', data:qty, backgroundColor:'#4895ef' },
+          { label:'Revenue ($)', data:revenue.map(v=> (v/100).toFixed(2)), backgroundColor:'#ffd166' }
+        ]},
+        options:{ responsive:true, scales:{ x:{ ticks:{ color:'#e6e9f0' } }, y:{ beginAtZero:true } } }
+      });
+    }
+
+    async function loadHourly(){
+      const d = qs('dayForHourly').value;
+      if(!d) return;
+  const rows = await fetchJSON('/api/analytics/hourly-scans?date=' + encodeURIComponent(d));
+  if(!rows) return;
+      const labels = rows.map(r => String(r.hour).padStart(2,'0') + ':00');
+      const counts = rows.map(r => r.count);
+      const ctx = qs('hourlyChart').getContext('2d');
+      state.charts.hourly && state.charts.hourly.destroy();
+      state.charts.hourly = new Chart(ctx, {
+        type:'bar',
+        data:{ labels, datasets:[ { label:'Scans', data:counts, backgroundColor:'#4cc9f0' } ] },
+        options:{ responsive:true, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+
+    async function loadBreakdown(){
+  const data = await fetchJSON('/api/analytics/revenue-breakdown' + buildQuery());
+  if(!data) return;
+      const ctx = qs('breakdownChart').getContext('2d');
+      state.charts.breakdown && state.charts.breakdown.destroy();
+      const labels = ['Tickets','Concessions','Other'];
+      const values = [Number(data.tickets), Number(data.concessions), Number(data.other)].map(v=> (v/100).toFixed(2));
+      state.charts.breakdown = new Chart(ctx, {
+        type:'doughnut',
+        data:{ labels, datasets:[ { data:values, backgroundColor:['#4cc9f0','#90be6d','#ffd166'] } ] },
+        options:{ responsive:true }
+      });
+    }
+
+    async function refresh(){
+      const results = await Promise.allSettled([ loadSummary(), loadDailyChart(), loadTopItems(), loadHourly(), loadBreakdown() ]);
+      const anyRejected = results.some(r => r.status === 'rejected');
+      if(!anyRejected){ hideError(); }
+    }
+
+    qs('apply').addEventListener('click', refresh);
+
+    // Auto refresh
+    qs('autoRefresh').addEventListener('change', () => {
+      if(state.intervalId){ clearInterval(state.intervalId); state.intervalId = null; }
+      const sec = parseInt(qs('autoRefresh').value, 10);
+      if(sec > 0){ state.intervalId = setInterval(refresh, sec * 1000); }
+    });
+
+    // Export helpers
+    function download(filename, text){
+      const el = document.createElement('a');
+      el.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+      el.setAttribute('download', filename);
+      el.style.display = 'none';
+      document.body.appendChild(el);
+      el.click();
+      document.body.removeChild(el);
+    }
+    function chartToPng(chart, filename){
+      const url = chart.toBase64Image();
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+    }
+    function toCsv(rows){
+      if(!rows.length) return '';
+      const headers = Object.keys(rows[0]);
+      const lines = [headers.join(',')];
+      for(const r of rows){ lines.push(headers.map(h => JSON.stringify(r[h] ?? '')).join(',')); }
+      return lines.join('\n');
+    }
+    qs('exportDailyCsv').addEventListener('click', () => {
+      download('sales-by-day.csv', toCsv(state.cachedDaily));
+    });
+    qs('exportDailyPng').addEventListener('click', () => {
+      chartToPng(state.charts.daily, 'daily-overview.png');
+    });
+    qs('exportTopCsv').addEventListener('click', () => {
+      download('top-items.csv', toCsv(state.cachedTop));
+    });
+    qs('exportTopPng').addEventListener('click', () => {
+      chartToPng(state.charts.top, 'top-items.png');
+    });
+    qs('exportHourlyPng').addEventListener('click', () => {
+      chartToPng(state.charts.hourly, 'hourly-scans.png');
+    });
+
+    // Day drilldown modal
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:1000;';
+    modal.innerHTML = `<div class="card" style="max-width:900px;width:90%;max-height:80vh;overflow:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 id="modalTitle" style="margin:0;">Day Detail</h3>
+        <button id="modalClose">Close</button>
+      </div>
+      <div id="modalBody">
+        <div class="kpis" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="card kpi"><h3>Sold</h3><div class="value" id="mdSold">-</div></div>
+          <div class="card kpi"><h3>Given Away</h3><div class="value" id="mdGiven">-</div></div>
+          <div class="card kpi"><h3>Checked In</h3><div class="value" id="mdChecked">-</div></div>
+        </div>
+        <h4>Top Items</h4>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr><th align="left">Item</th><th align="right">Qty</th><th align="right">Revenue</th></tr></thead>
+          <tbody id="mdTopItems"></tbody>
+        </table>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#modalClose').addEventListener('click', () => { modal.style.display='none'; });
+
+    async function showDayDetail(date){
+  const data = await fetchJSON('/api/analytics/day-detail?date=' + encodeURIComponent(date));
+  if(!data) return;
+      qs('modalTitle').textContent = `Day Detail: ${data.date}`;
+      qs('mdSold').textContent = data.ticketsSold;
+      qs('mdGiven').textContent = data.ticketsGivenAway;
+      qs('mdChecked').textContent = data.ticketsCheckedIn;
+      const tbody = qs('mdTopItems');
+      tbody.innerHTML = '';
+      for(const row of data.topItems){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.name}</td><td align="right">${row.quantity}</td><td align="right">${fmtMoney(row.revenue)}</td>`;
+        tbody.appendChild(tr);
+      }
+      modal.style.display = 'flex';
+    }
+
+    defaultDates();
+    refresh();
+  </script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+version: '3.8'
+
+services:
+  # Main Admin Service - Controls all other services
+  admin-service:
+    build:
+      context: ./admin-portal
+      dockerfile: Dockerfile
+    container_name: admin-service
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      CONFIG_PATH: /data/config.json
+      DO_API_TOKEN: ${DO_API_TOKEN:-}
+      DO_APP_ID: ${DO_APP_ID:-}
+    volumes:
+      - admin-portal-config:/data
+    networks:
+      - simpletix-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4000/api/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Payment Service - Managed by Admin
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8081:8080"
+    depends_on:
+      payment-db:
+        condition: service_healthy
+    environment:
+      SPRING_APPLICATION_NAME: payment-service
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://payment-db:5432/payment_db
+      SPRING_DATASOURCE_USERNAME: payment_user
+      SPRING_DATASOURCE_PASSWORD: payment_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SQUARE_API_TOKEN: ${SQUARE_API_TOKEN:-}
+      SQUARE_LOCATION_ID: ${SQUARE_LOCATION_ID:-}
+      SQUARE_WEBHOOK_SIGNATURE_KEY: ${SQUARE_WEBHOOK_SIGNATURE_KEY:-}
+      SUBSCRIPTION_REFUND_PROCESSING_FEE_PERCENT: 2.5
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_COM_EXAMPLE_SIMPLETIXWEBHOOK: DEBUG
+    networks:
+      - simpletix-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Logger Service - Managed by Admin
+  logger-service:
+    build:
+      context: ./Logger
+      dockerfile: Dockerfile
+    container_name: logger-service
+    ports:
+      - "8082:8080"
+    depends_on:
+      logger-db:
+        condition: service_healthy
+    environment:
+      SPRING_APPLICATION_NAME: logger-service
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://logger-db:5432/logger_db
+      SPRING_DATASOURCE_USERNAME: logger_user
+      SPRING_DATASOURCE_PASSWORD: logger_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      LOGGING_LEVEL_ROOT: INFO
+    networks:
+      - simpletix-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Feedback App - Managed by Admin
+  feedback-app:
+    build:
+      context: ./feedback-app
+      dockerfile: Dockerfile
+    container_name: feedback-app
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      API_ENDPOINT: ${API_ENDPOINT:-http://admin-service:8080}
+    networks:
+      - simpletix-network
+    depends_on:
+      - admin-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Admin Database
+  admin-db:
+    image: postgres:15-alpine
+    container_name: admin-db
+    environment:
+      POSTGRES_DB: admin_db
+      POSTGRES_USER: admin_user
+      POSTGRES_PASSWORD: admin_password
+    volumes:
+      - admin-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    networks:
+      - simpletix-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Payment Database
+  payment-db:
+    image: postgres:15-alpine
+    container_name: payment-db
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment_user
+      POSTGRES_PASSWORD: payment_password
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - simpletix-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Logger Database
+  logger-db:
+    image: postgres:15-alpine
+    container_name: logger-db
+    environment:
+      POSTGRES_DB: logger_db
+      POSTGRES_USER: logger_user
+      POSTGRES_PASSWORD: logger_password
+    volumes:
+      - logger-db-data:/var/lib/postgresql/data
+    ports:
+      - "5435:5432"
+    networks:
+      - simpletix-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logger_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Reverse Proxy/Load Balancer (Nginx) - Entry point
+  nginx:
+    image: nginx:latest
+    container_name: simpletix-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - admin-service
+      - payment-service
+      - logger-service
+      - feedback-app
+    networks:
+      - simpletix-network
+    restart: unless-stopped
+
+volumes:
+  admin-db-data:
+    driver: local
+  payment-db-data:
+    driver: local
+  logger-db-data:
+    driver: local
+  admin-portal-config:
+    driver: local
+
+networks:
+  simpletix-network:
+    driver: bridge

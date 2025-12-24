@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Press Box Announcer Display</title>
+  <style>
+    /* Brown/gold theme matching app color scheme */
+    .pressbox-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: #fffbe6;
+      border: none;
+      padding: 16px 32px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(124, 90, 42, 0.4);
+      transition: all 0.3s ease;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .pressbox-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(124, 90, 42, 0.5);
+    }
+    .pressbox-btn:active {
+      transform: translateY(-1px);
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(135deg, #7c5a2a 0%, #c9b037 100%);
+      min-height: 100vh;
+      display: flex;
+      overflow: hidden;
+      background-image: url('/background.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+    }
+    
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(60,60,60,0.80) 0%, rgba(120,120,120,0.60) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    /* Sidebar */
+    .sidebar {
+      width: 350px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-right: 2px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 1;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    .sidebar-header {
+      padding: 1.5rem;
+      background: rgba(124, 90, 42, 0.3);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    .sidebar-header h1 {
+      font-size: 1.5rem;
+      color: #fffbe6;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 2px 8px rgba(124,90,42,0.5);
+    }
+    
+    .sidebar-header .count {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .announcement-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.5rem;
+    }
+    
+    .announcement-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .announcement-item:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 251, 230, 0.5);
+      transform: translateX(5px);
+    }
+    
+    .announcement-item.active {
+      background: rgba(124, 90, 42, 0.3);
+      border-color: rgba(255, 251, 230, 0.8);
+      box-shadow: 0 4px 12px rgba(124, 90, 42, 0.3);
+    }
+    
+    .announcement-item.new {
+      animation: pulse-border 1.5s infinite;
+      border-color: rgba(201, 176, 55, 0.8);
+    }
+    
+    @keyframes pulse-border {
+      0%, 100% { 
+        border-color: rgba(201, 176, 55, 0.8);
+        box-shadow: 0 0 0 0 rgba(201, 176, 55, 0.4);
+      }
+      50% { 
+        border-color: rgba(201, 176, 55, 1);
+        box-shadow: 0 0 0 4px rgba(201, 176, 55, 0.2);
+      }
+    }
+    
+    .announcement-item .name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fffbe6;
+      margin-bottom: 0.3rem;
+      text-shadow: 0 1px 4px rgba(124,90,42,0.3);
+    }
+    
+    .announcement-item .time {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .announcement-item .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+    
+    .announcement-item .badge.scan {
+      background: rgba(124, 90, 42, 0.4);
+      color: #fffbe6;
+    }
+    
+    .announcement-item .badge.manual {
+      background: rgba(201, 176, 55, 0.4);
+      color: #fffbe6;
+    }
+    
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .empty-state {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .empty-state h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    
+    .empty-state p {
+      font-size: 1.2rem;
+    }
+    
+    .detail-view {
+      display: none;
+      width: 100%;
+      max-width: 900px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 3rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    
+    .detail-view.active {
+      display: block;
+    }
+    
+    .detail-view .name {
+      font-size: clamp(3rem, 8vw, 5rem);
+      font-weight: bold;
+      color: transparent;
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: shimmer 3s infinite;
+      margin-bottom: 1.5rem;
+      text-align: center;
+      line-height: 1.2;
+    }
+    
+    @keyframes shimmer {
+      0%, 100% {
+        filter: brightness(1) drop-shadow(0 0 20px rgba(255,215,0,0.5));
+      }
+      50% {
+        filter: brightness(1.2) drop-shadow(0 0 30px rgba(255,215,0,0.8));
+      }
+    }
+    
+    .detail-view .message {
+      font-size: 1.8rem;
+      color: #fffbe6;
+      margin-bottom: 1rem;
+      text-align: center;
+      text-shadow: 0 1px 4px rgba(124,90,42,0.3);
+    }
+    
+    .detail-view .ticket-type {
+      font-size: 1.5rem;
+      color: rgba(255, 215, 0, 0.8);
+      margin-bottom: 1rem;
+      text-align: center;
+      font-style: italic;
+    }
+    
+    .detail-view .meta {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .detail-view .meta-item {
+      text-align: center;
+    }
+    
+    .detail-view .meta-label {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.3rem;
+    }
+    
+    .detail-view .meta-value {
+      font-size: 1.1rem;
+      color: #fffbe6;
+      text-shadow: 0 1px 4px rgba(124,90,42,0.3);
+    }
+    
+    /* Flash Modal */
+    .flash-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      animation: flashIn 0.3s ease;
+    }
+    
+    .flash-modal.active {
+      display: flex;
+    }
+    
+    @keyframes flashIn {
+      0% {
+        opacity: 0;
+        background: rgba(255, 255, 255, 0.3);
+      }
+      50% {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      100% {
+        opacity: 1;
+        background: rgba(0, 0, 0, 0.95);
+      }
+    }
+    
+    .flash-content {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: 4rem;
+      max-width: 800px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      border: 3px solid rgba(255, 215, 0, 0.5);
+      text-align: center;
+      animation: scaleIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    
+    @keyframes scaleIn {
+      0% {
+        transform: scale(0.7);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    
+    .flash-content .new-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: #fffbe6;
+      padding: 0.5rem 1.5rem;
+      border-radius: 50px;
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(124, 90, 42, 0.4);
+    }
+    
+    .flash-content .name {
+      font-size: clamp(3.5rem, 10vw, 6rem);
+      font-weight: bold;
+      color: transparent;
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #ffd700 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: shimmer 3s infinite;
+      margin-bottom: 2rem;
+      line-height: 1.2;
+    }
+    
+    .flash-content .message {
+      font-size: 2rem;
+      color: #fffbe6;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 1px 4px rgba(124,90,42,0.3);
+    }
+    
+    .flash-content .ticket-type {
+      font-size: 1.6rem;
+      color: rgba(255, 215, 0, 0.8);
+      margin-bottom: 3rem;
+      font-style: italic;
+    }
+    
+    .acknowledge-btn {
+      padding: 1.5rem 4rem;
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: #fffbe6;
+      border: 3px solid rgba(255, 215, 0, 0.5);
+      border-radius: 16px;
+      font-size: 1.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 32px rgba(124, 90, 42, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .acknowledge-btn:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(124, 90, 42, 0.6);
+      background: linear-gradient(135deg, #d4bd47 0%, #8a6634 100%);
+    }
+    
+    .acknowledge-btn:active {
+      transform: translateY(-2px);
+    }
+    
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 1rem;
+      color: white;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+    }
+    
+    .status-indicator.error {
+      display: flex;
+      background: rgba(255, 77, 79, 0.25);
+      box-shadow: 0 4px 16px rgba(255, 77, 79, 0.25);
+    }
+    
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff4d4f;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* Scrollbar */
+    .announcement-list::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .announcement-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .announcement-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+    
+    .announcement-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        max-height: 40vh;
+      }
+      
+      .main-content {
+        padding: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="status-indicator">
+    <div class="status-dot"></div>
+    <span id="status-text">Connection Error</span>
+  </div>
+
+  <!-- Sidebar with announcement list -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>📢 Announcements</h1>
+      <div class="count">Total: <span id="announcementCount">0</span></div>
+    </div>
+    <div class="announcement-list" id="announcementList">
+      <!-- Announcements will be populated here -->
+    </div>
+  </div>
+
+  <!-- Main content area -->
+  <div class="main-content">
+    <div class="empty-state" id="emptyState">
+      <h2>No Announcement Selected</h2>
+      <p>Select an announcement from the list or wait for new ones</p>
+    </div>
+    
+    <div class="detail-view" id="detailView">
+      <div class="name" id="detailName"></div>
+      <div class="message" id="detailMessage"></div>
+      <div class="meta">
+        <div class="meta-item">
+          <div class="meta-label">Source</div>
+          <div class="meta-value" id="detailSource"></div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Time</div>
+          <div class="meta-value" id="detailTime"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flash modal for new announcements -->
+  <div class="flash-modal" id="flashModal">
+    <div class="flash-content">
+      <div class="new-badge">🔔 New Announcement</div>
+      <div class="name" id="flashName"></div>
+      <div class="message" id="flashMessage"></div>
+      <button class="acknowledge-btn" id="acknowledgeBtn">Acknowledged</button>
+    </div>
+  </div>
+
+  <script>
+    const announcementList = document.getElementById('announcementList');
+    const announcementCount = document.getElementById('announcementCount');
+    const emptyState = document.getElementById('emptyState');
+    const detailView = document.getElementById('detailView');
+    const detailName = document.getElementById('detailName');
+    const detailMessage = document.getElementById('detailMessage');
+    const detailSource = document.getElementById('detailSource');
+    const detailTime = document.getElementById('detailTime');
+    const flashModal = document.getElementById('flashModal');
+    const flashName = document.getElementById('flashName');
+    const flashMessage = document.getElementById('flashMessage');
+    const acknowledgeBtn = document.getElementById('acknowledgeBtn');
+    const statusIndicator = document.querySelector('.status-indicator');
+    const statusText = document.getElementById('status-text');
+
+    let announcements = [];
+    let selectedAnnouncementId = null;
+    let lastCheckedId = null;
+    let newAnnouncementData = null;
+
+    function showStatusError(message = 'Connection Error') {
+      statusText.textContent = message;
+      statusIndicator.classList.add('error');
+    }
+
+    function hideStatusError() {
+      statusIndicator.classList.remove('error');
+    }
+
+    function formatTime(isoString) {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderAnnouncementList() {
+      announcementList.innerHTML = '';
+      announcementCount.textContent = announcements.length;
+
+      if (announcements.length === 0) {
+        announcementList.innerHTML = '<div style="padding: 2rem; text-align: center; color: rgba(255,255,255,0.5);">No announcements yet</div>';
+        return;
+      }
+
+      announcements.forEach(ann => {
+        const item = document.createElement('div');
+        item.className = 'announcement-item';
+        if (ann.id === selectedAnnouncementId) {
+          item.classList.add('active');
+        }
+        if (!ann.viewed) {
+          item.classList.add('new');
+        }
+
+        const sourceBadge = ann.source === 'SCAN' 
+          ? '<span class="badge scan">SCAN</span>' 
+          : '<span class="badge manual">MANUAL</span>';
+
+        item.innerHTML = `
+          <div class="name">${ann.name}${sourceBadge}</div>
+          <div class="time">${formatTime(ann.createdAt)}</div>
+        `;
+
+        item.addEventListener('click', () => selectAnnouncement(ann));
+        announcementList.appendChild(item);
+      });
+    }
+
+    function selectAnnouncement(ann) {
+      selectedAnnouncementId = ann.id;
+      ann.viewed = true;
+
+      // Only for manual submissions: show message on top, then name below
+      if (ann.source === 'MANUAL') {
+        if (ann.message && ann.message.trim()) {
+          detailMessage.textContent = ann.message;
+          detailMessage.style.display = 'block';
+        } else {
+          detailMessage.style.display = 'none';
+        }
+        detailName.textContent = ann.name;
+      } else {
+        // For scans: name on top, message below (if any)
+        detailName.textContent = ann.name;
+        const displayMessage = (ann.message && ann.message.trim()) ? ann.message : (ann.source === 'SCAN' ? 'has arrived' : '');
+        if (displayMessage) {
+          detailMessage.textContent = displayMessage;
+          detailMessage.style.display = 'block';
+        } else {
+          detailMessage.style.display = 'none';
+        }
+      }
+
+      detailSource.textContent = ann.source;
+      detailTime.textContent = formatTime(ann.createdAt);
+
+      emptyState.style.display = 'none';
+      detailView.classList.add('active');
+
+      renderAnnouncementList();
+    }
+
+    function showFlashModal(ann) {
+      newAnnouncementData = ann;
+      
+      flashName.textContent = ann.name;
+      
+      // Prefer provided message; fallback to "has arrived" for SCAN without message
+      const displayMessage = (ann.message && ann.message.trim()) ? ann.message : (ann.source === 'SCAN' ? 'has arrived' : '');
+      if (displayMessage) {
+        flashMessage.textContent = displayMessage;
+        flashMessage.style.display = 'block';
+      } else {
+        flashMessage.style.display = 'none';
+      }
+
+      flashModal.classList.add('active');
+    }
+
+    acknowledgeBtn.addEventListener('click', () => {
+      flashModal.classList.remove('active');
+      if (newAnnouncementData) {
+        // Add to list and auto-select
+        announcements.unshift(newAnnouncementData);
+        selectAnnouncement(newAnnouncementData);
+        newAnnouncementData = null;
+      }
+    });
+
+    async function checkForNewAnnouncement() {
+      try {
+        const res = await fetch('/api/pressbox/latest', { cache: 'no-store' });
+        
+        if (res.status === 204) {
+          // No new announcements
+          hideStatusError();
+          return;
+        }
+        
+        if (!res.ok) {
+          showStatusError('Connection Error');
+          return;
+        }
+        
+        const data = await res.json();
+        hideStatusError();
+        
+        if (data && data.id) {
+          // Check if this is truly new
+          if (lastCheckedId !== data.id) {
+            lastCheckedId = data.id;
+            showFlashModal(data);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching new announcement:', e);
+        showStatusError('Connection Error');
+      }
+    }
+
+    async function loadAllAnnouncements() {
+      try {
+        const res = await fetch('/api/pressbox/announcements?limit=100', { cache: 'no-store' });
+        
+        if (!res.ok) {
+          return;
+        }
+        
+        const data = await res.json();
+        
+        if (data && data.length > 0) {
+          // Merge with existing, avoiding duplicates
+          data.forEach(ann => {
+            if (!announcements.find(a => a.id === ann.id)) {
+              announcements.push({
+                ...ann,
+                viewed: true // Mark existing as viewed
+              });
+            }
+          });
+          
+          // Sort by creation time, newest first
+          announcements.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          renderAnnouncementList();
+        }
+      } catch (e) {
+        console.error('Error loading announcements:', e);
+      }
+    }
+
+    // Poll for new announcements every 2 seconds
+    setInterval(checkForNewAnnouncement, 2000);
+    
+    // Load existing announcements on startup
+    loadAllAnnouncements();
+    
+    // Initial check
+    checkForNewAnnouncement();
+  </script>
+</body>
+</html>

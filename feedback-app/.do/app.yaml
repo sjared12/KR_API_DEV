@@ -1,0 +1,9 @@
+name: feedback-app
+services:
+- name: web
+  environment_slug: node-js
+  source_dir: /feedback-app
+  run_command: node server.js
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: basic-xxs

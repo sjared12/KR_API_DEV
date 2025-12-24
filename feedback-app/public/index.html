@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Event Feedback</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body { 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; 
+      background-image: url('/background.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+    }
+    
+    /* Dark overlay for readability (match gate.html exactly) */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(60,60,60,0.80) 0%, rgba(120,120,120,0.60) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .container { 
+      max-width: 600px; 
+      width: 100%;
+      background: linear-gradient(180deg, rgba(124, 90, 42, 0.85), rgba(63, 45, 20, 0.92));
+      border-radius: 16px; 
+      padding: 40px; 
+      box-shadow: 0 20px 60px rgba(40, 25, 10, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(201, 176, 55, 0.25);
+      position: relative;
+      z-index: 1;
+    }
+    
+    h1 { 
+      font-size: 2rem; 
+      margin-bottom: 8px; 
+      color: #f3f4f6;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .subtitle {
+      color: #d1d5db;
+      margin-bottom: 32px;
+      font-size: 1rem;
+    }
+    
+    label { 
+      display: block; 
+      margin: 20px 0 8px; 
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+    
+    input[type="text"], 
+    input[type="email"], 
+    textarea, 
+    select { 
+      width: 100%; 
+      padding: 12px 16px; 
+      border-radius: 8px; 
+      border: 1px solid rgba(201, 176, 55, 0.25);
+      background: rgba(63, 45, 20, 0.75);
+      color: #f8fafc;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    
+    input:focus, 
+    textarea:focus, 
+    select:focus { 
+      outline: none; 
+      border-color: #c9b037;
+      background: rgba(63, 45, 20, 0.92);
+      box-shadow: 0 0 0 3px rgba(201, 176, 55, 0.15);
+    }
+    
+    textarea { 
+      min-height: 120px; 
+      resize: vertical; 
+      font-family: inherit;
+    }
+    
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23f3f4f6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 40px;
+    }
+    
+    .rating-group {
+      margin: 20px 0;
+    }
+    
+    .rating-options {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .rating-options input[type="radio"] {
+      display: none;
+    }
+    
+    .rating-options label {
+      flex: 1;
+      margin: 0;
+      padding: 12px;
+      text-align: center;
+      border: 2px solid rgba(201, 176, 55, 0.25);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(63, 45, 20, 0.55);
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+    
+    .rating-options input[type="radio"]:checked + label {
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: white;
+      border-color: #c9b037;
+      box-shadow: 0 4px 12px rgba(201, 176, 55, 0.4);
+    }
+    
+    .rating-options label:hover {
+      border-color: #c9b037;
+      transform: translateY(-2px);
+      background: rgba(201, 176, 55, 0.2);
+    }
+    
+    .actions { 
+      margin-top: 32px; 
+      display: flex; 
+      gap: 12px; 
+      align-items: center; 
+    }
+    
+    button { 
+      flex: 1;
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: white; 
+      border: 0; 
+      border-radius: 8px; 
+      padding: 14px 24px; 
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(201, 176, 55, 0.4);
+    }
+    
+    button:disabled { 
+      background: rgba(107, 114, 128, 0.5);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .status { 
+      font-size: 0.9rem; 
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+      display: none;
+    }
+    
+    .status.show { display: block; }
+    
+    .status.success { 
+      color: #10b981; 
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .status.error { 
+      color: #ef4444; 
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .thank-you {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .thank-you.show { display: block; }
+    
+    .thank-you h2 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+      color: #c9b037;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    
+    .thank-you p {
+      font-size: 1.125rem;
+      color: #f3f4f6;
+      margin-bottom: 24px;
+    }
+    
+    .thank-you button {
+      background: rgba(107, 114, 128, 0.5);
+      color: #f3f4f6;
+      max-width: 200px;
+      margin: 0 auto;
+    }
+    
+    .thank-you button:hover {
+      background: rgba(107, 114, 128, 0.7);
+    }
+    
+    .required { color: #fbbf24; }
+    
+    @media (max-width: 600px) {
+      .container { padding: 24px; }
+      h1 { font-size: 1.5rem; }
+      .rating-options { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Survey Form -->
+    <div id="formSection">
+      <h1>We'd love your feedback! 🎉</h1>
+      <p class="subtitle">Help us make future events even better. Takes less than a minute.</p>
+
+      <form id="feedbackForm">
+        <!-- Hidden event name field -->
+        <input type="hidden" id="eventName" name="eventName" />
+
+        <div class="rating-group">
+          <label>Overall rating <span class="required">*</span></label>
+          <div class="rating-options">
+            <input type="radio" id="rating5" name="rating" value="5" required />
+            <label for="rating5">5<br>⭐⭐⭐⭐⭐</label>
+            
+            <input type="radio" id="rating4" name="rating" value="4" />
+            <label for="rating4">4<br>⭐⭐⭐⭐</label>
+            
+            <input type="radio" id="rating3" name="rating" value="3" />
+            <label for="rating3">3<br>⭐⭐⭐</label>
+            
+            <input type="radio" id="rating2" name="rating" value="2" />
+            <label for="rating2">2<br>⭐⭐</label>
+            
+            <input type="radio" id="rating1" name="rating" value="1" />
+            <label for="rating1">1<br>⭐</label>
+          </div>
+        </div>
+
+        <label for="comments">Comments (optional)</label>
+        <textarea id="comments" name="comments" placeholder="What did you enjoy? What could we improve?"></textarea>
+
+        <label for="email">Email (optional)</label>
+        <input id="email" name="email" type="email" placeholder="your@email.com" />
+        <p class="subtitle" style="margin-top: 4px; font-size: 0.875rem;">We'll only use this if you'd like a follow-up</p>
+
+        <div class="actions">
+          <button id="submitBtn" type="submit">Submit Feedback</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+      </form>
+    </div>
+
+    <!-- Thank You Message -->
+    <div id="thankYouSection" class="thank-you">
+      <h2>Thank you! 🙏</h2>
+      <p>Your feedback helps us create better experiences.</p>
+      <button onclick="resetForm()">Submit Another Response</button>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('feedbackForm');
+    const statusEl = document.getElementById('status');
+    const submitBtn = document.getElementById('submitBtn');
+    const formSection = document.getElementById('formSection');
+    const thankYouSection = document.getElementById('thankYouSection');
+    const container = document.querySelector('.container');
+
+    // Check for event parameter - REQUIRED
+    const params = new URLSearchParams(window.location.search);
+    const eventParam = params.get('event');
+    
+    if (!eventParam || eventParam.trim() === '') {
+      // No event specified - show error message
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px;">
+          <h2 style="color: #f3f4f6; margin-bottom: 16px;">⚠️ Invalid Link</h2>
+          <p style="color: #d1d5db; font-size: 1.125rem; margin-bottom: 24px;">
+            This feedback form requires a valid event link.
+          </p>
+          <p style="color: #9ca3af; font-size: 0.875rem;">
+            Please use the link provided by the event organizer.
+          </p>
+        </div>
+      `;
+    } else {
+      // Set the hidden event name field
+      document.getElementById('eventName').value = decodeURIComponent(eventParam);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      showStatus('', false);
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+
+      const rating = document.querySelector('input[name="rating"]:checked');
+      if (!rating) {
+        showStatus('Please select a rating', true);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Feedback';
+        return;
+      }
+
+      const payload = {
+        eventName: document.getElementById('eventName').value,
+        rating: parseInt(rating.value, 10),
+        comments: document.getElementById('comments').value || null,
+        email: document.getElementById('email').value || null,
+      };
+
+      try {
+        const res = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText || 'Request failed');
+        }
+
+        // Show thank you message
+        formSection.style.display = 'none';
+        thankYouSection.classList.add('show');
+        
+        // Reset form for next submission
+        form.reset();
+      } catch (err) {
+        console.error('Submission error:', err);
+        showStatus('Sorry, something went wrong. Please try again.', true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Feedback';
+      }
+    });
+
+    function showStatus(message, isError) {
+      if (!message) {
+        statusEl.classList.remove('show');
+        return;
+      }
+      
+      statusEl.textContent = message;
+      statusEl.className = 'status show ' + (isError ? 'error' : 'success');
+    }
+
+    function resetForm() {
+      formSection.style.display = 'block';
+      thankYouSection.classList.remove('show');
+      form.reset();
+      showStatus('', false);
+    }
+  </script>
+</body>
+</html>

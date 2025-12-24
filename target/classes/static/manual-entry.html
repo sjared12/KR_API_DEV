@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manual Square Entry</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; 
+      margin: 0;
+      min-height: 100vh;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #7c5a2a 0%, #c9b037 100%);
+      background-image: url('/background.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      position: relative;
+      padding: 2rem;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(60,60,60,0.80) 0%, rgba(120,120,120,0.60) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 800px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 2rem;
+      color: #fffbe6;
+      text-shadow: 0 2px 8px #7c5a2a;
+    }
+    .subtitle {
+      margin: 0 0 2rem 0;
+      opacity: 0.85;
+      font-size: 0.95rem;
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: #fffbe6;
+    }
+    .form-group label .required {
+      color: #ffeb3b;
+      margin-left: 4px;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .form-group select {
+      cursor: pointer;
+    }
+    .form-group select option {
+      background: #3c3c3c;
+      color: white;
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 600px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #c9b037 0%, #7c5a2a 100%);
+      color: #fffbe6;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 1rem;
+    }
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(124, 90, 42, 0.4);
+    }
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .message {
+      margin-top: 1rem;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+      display: none;
+    }
+    .message.success {
+      background: rgba(76, 175, 80, 0.3);
+      border: 1px solid rgba(76, 175, 80, 0.5);
+      color: #a5d6a7;
+    }
+    .message.error {
+      background: rgba(244, 67, 54, 0.3);
+      border: 1px solid rgba(244, 67, 54, 0.5);
+      color: #ef9a9a;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 1.5rem;
+      color: #fffbe6;
+      text-decoration: none;
+      font-size: 0.9rem;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+    .back-link:hover {
+      opacity: 1;
+    }
+    .help-text {
+      font-size: 0.85rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Manual Square Entry</h1>
+    <p class="subtitle">Add a Square sale item manually to the database</p>
+    
+    <form id="entryForm">
+      <h3 style="margin: 0 0 1rem 0; color: #fffbe6; font-size: 1.2rem;">Order Information</h3>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="orderId">Order ID <span class="required">*</span></label>
+          <input type="text" id="orderId" name="orderId" required placeholder="e.g., ORD-12345">
+        </div>
+        
+        <div class="form-group">
+          <label for="lineItemUid">Line Item UID</label>
+          <input type="text" id="lineItemUid" name="lineItemUid" placeholder="Auto-generated if empty">
+        </div>
+      </div>
+      
+      <h3 style="margin: 1.5rem 0 1rem 0; color: #fffbe6; font-size: 1.2rem;">Item Details</h3>
+      
+      <div class="form-group">
+        <label for="itemName">Item Name <span class="required">*</span></label>
+        <input type="text" id="itemName" name="itemName" required placeholder="e.g., Hot Dog">
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="variationName">Variation Name</label>
+          <input type="text" id="variationName" name="variationName" placeholder="e.g., Large, Regular">
+        </div>
+        
+        <div class="form-group">
+          <label for="itemType">Item Type</label>
+          <input type="text" id="itemType" name="itemType" placeholder="e.g., ITEM, SERVICE">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="catalogObjectId">Catalog Object ID</label>
+          <input type="text" id="catalogObjectId" name="catalogObjectId" placeholder="Square catalog ID">
+        </div>
+        
+        <div class="form-group">
+          <label for="catalogVersion">Catalog Version</label>
+          <input type="text" id="catalogVersion" name="catalogVersion" placeholder="Version number">
+        </div>
+      </div>
+      
+      <h3 style="margin: 1.5rem 0 1rem 0; color: #fffbe6; font-size: 1.2rem;">Pricing</h3>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="quantity">Quantity <span class="required">*</span></label>
+          <input type="number" id="quantity" name="quantity" min="1" value="1" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="currency">Currency</label>
+          <select id="currency" name="currency">
+            <option value="USD">USD</option>
+            <option value="CAD">CAD</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="basePriceMoney">Base Price ($)</label>
+          <input type="number" id="basePriceMoney" name="basePriceMoney" step="0.01" min="0" placeholder="0.00">
+        </div>
+        
+        <div class="form-group">
+          <label for="totalMoney">Total Money ($) <span class="required">*</span></label>
+          <input type="number" id="totalMoney" name="totalMoney" step="0.01" min="0" required placeholder="0.00">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="pricingType">Pricing Type</label>
+          <input type="text" id="pricingType" name="pricingType" placeholder="e.g., FIXED_PRICING">
+        </div>
+        
+        <div class="form-group">
+          <label for="grossSalesMoney">Gross Sales ($)</label>
+          <input type="number" id="grossSalesMoney" name="grossSalesMoney" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      
+      <h3 style="margin: 1.5rem 0 1rem 0; color: #fffbe6; font-size: 1.2rem;">Taxes & Adjustments</h3>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="totalTaxMoney">Total Tax ($)</label>
+          <input type="number" id="totalTaxMoney" name="totalTaxMoney" step="0.01" min="0" placeholder="0.00">
+        </div>
+        
+        <div class="form-group">
+          <label for="totalDiscountMoney">Total Discount ($)</label>
+          <input type="number" id="totalDiscountMoney" name="totalDiscountMoney" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="totalTipMoney">Total Tip ($)</label>
+          <input type="number" id="totalTipMoney" name="totalTipMoney" step="0.01" min="0" placeholder="0.00">
+        </div>
+        
+        <div class="form-group">
+          <label for="totalServiceChargeMoney">Service Charge ($)</label>
+          <input type="number" id="totalServiceChargeMoney" name="totalServiceChargeMoney" step="0.01" min="0" placeholder="0.00">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="taxes">Taxes (JSON)</label>
+        <textarea id="taxes" name="taxes" placeholder='Optional JSON: {"tax_uid": "...", "amount": "..."}'></textarea>
+        <div class="help-text">Optional JSON string for tax details</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="discounts">Discounts (JSON)</label>
+        <textarea id="discounts" name="discounts" placeholder='Optional JSON: {"discount_uid": "...", "amount": "..."}'></textarea>
+        <div class="help-text">Optional JSON string for discount details</div>
+      </div>
+      
+      <div class="form-group">
+        <label for="appliedTaxes">Applied Taxes (JSON)</label>
+        <textarea id="appliedTaxes" name="appliedTaxes" placeholder='Optional JSON: [{"uid": "...", "applied_money": "..."}]'></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="appliedDiscounts">Applied Discounts (JSON)</label>
+        <textarea id="appliedDiscounts" name="appliedDiscounts" placeholder='Optional JSON: [{"uid": "...", "applied_money": "..."}]'></textarea>
+      </div>
+      
+      <h3 style="margin: 1.5rem 0 1rem 0; color: #fffbe6; font-size: 1.2rem;">Additional Data</h3>
+      
+      <div class="form-group">
+        <label for="modifiers">Modifiers (JSON)</label>
+        <textarea id="modifiers" name="modifiers" placeholder='Optional JSON: [{"uid": "...", "name": "...", "base_price_money": "..."}]'></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="metadata">Metadata (JSON)</label>
+        <textarea id="metadata" name="metadata" placeholder='Optional JSON: {"key": "value"}'></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="note">Notes</label>
+        <textarea id="note" name="note" placeholder="Optional notes about this item..."></textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="createdAtStr">Created At</label>
+          <input type="datetime-local" id="createdAtStr" name="createdAtStr">
+          <div class="help-text">Leave empty for current time</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="updatedAtStr">Updated At</label>
+          <input type="datetime-local" id="updatedAtStr" name="updatedAtStr">
+          <div class="help-text">Leave empty for current time</div>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="extraData">Extra Data (JSON)</label>
+        <textarea id="extraData" name="extraData" placeholder='Optional JSON: {"additional": "data"}'></textarea>
+        <div class="help-text">Catch-all for any additional JSON fields</div>
+      </div>
+      
+      <button type="submit" class="btn-submit" id="submitBtn">Add Item</button>
+      <div id="statusMessage" class="message"></div>
+    </form>
+    
+    <a href="/dashboard.html" class="back-link">← Back to Dashboard</a>
+  </div>
+  
+  <script>
+    const form = document.getElementById('entryForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const messageDiv = document.getElementById('statusMessage');
+    
+    // Auto-calculate base price when quantity or total changes
+    const quantityInput = document.getElementById('quantity');
+    const totalInput = document.getElementById('totalMoney');
+    const baseInput = document.getElementById('basePriceMoney');
+    
+    function updateBasePrice() {
+      const qty = parseFloat(quantityInput.value) || 1;
+      const total = parseFloat(totalInput.value) || 0;
+      if (qty > 0 && total > 0 && !baseInput.value) {
+        baseInput.value = (total / qty).toFixed(2);
+      }
+    }
+    
+    quantityInput.addEventListener('input', updateBasePrice);
+    totalInput.addEventListener('input', updateBasePrice);
+    
+    // Helper to get nullable string value
+    function getStringValue(id) {
+      const val = document.getElementById(id).value.trim();
+      return val === '' ? null : val;
+    }
+    
+    // Helper to get nullable number value
+    function getNumberValue(id) {
+      const val = document.getElementById(id).value.trim();
+      return val === '' ? null : parseFloat(val);
+    }
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+      messageDiv.style.display = 'none';
+      
+      // Build complete form data with all fields
+      const formData = {
+        // Order info
+        orderId: document.getElementById('orderId').value.trim(),
+        lineItemUid: getStringValue('lineItemUid'),
+        
+        // Item details
+        itemName: document.getElementById('itemName').value.trim(),
+        variationName: getStringValue('variationName'),
+        itemType: getStringValue('itemType'),
+        catalogObjectId: getStringValue('catalogObjectId'),
+        catalogVersion: getStringValue('catalogVersion'),
+        
+        // Pricing
+        quantity: parseInt(document.getElementById('quantity').value),
+        currency: document.getElementById('currency').value,
+        basePriceMoney: getNumberValue('basePriceMoney'),
+        totalMoney: parseFloat(document.getElementById('totalMoney').value),
+        pricingType: getStringValue('pricingType'),
+        grossSalesMoney: getStringValue('grossSalesMoney'),
+        
+        // Taxes & adjustments
+        totalTaxMoney: getStringValue('totalTaxMoney'),
+        totalDiscountMoney: getStringValue('totalDiscountMoney'),
+        totalTipMoney: getStringValue('totalTipMoney'),
+        totalServiceChargeMoney: getStringValue('totalServiceChargeMoney'),
+        taxes: getStringValue('taxes'),
+        discounts: getStringValue('discounts'),
+        appliedTaxes: getStringValue('appliedTaxes'),
+        appliedDiscounts: getStringValue('appliedDiscounts'),
+        
+        // Additional data
+        modifiers: getStringValue('modifiers'),
+        metadata: getStringValue('metadata'),
+        note: getStringValue('note'),
+        createdAtStr: getStringValue('createdAtStr'),
+        updatedAtStr: getStringValue('updatedAtStr'),
+        extraData: getStringValue('extraData')
+      };
+      
+      try {
+        const response = await fetch('/api/square/manual-entry', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          messageDiv.className = 'message success';
+          messageDiv.textContent = '✓ Item added successfully! ID: ' + data.itemId;
+          messageDiv.style.display = 'block';
+          
+          // Reset form after 2 seconds
+          setTimeout(() => {
+            form.reset();
+            messageDiv.style.display = 'none';
+            document.getElementById('orderId').focus();
+          }, 2000);
+        } else {
+          messageDiv.className = 'message error';
+          messageDiv.textContent = data.error || 'Failed to add item';
+          messageDiv.style.display = 'block';
+        }
+      } catch (error) {
+        messageDiv.className = 'message error';
+        messageDiv.textContent = 'Error: ' + error.message;
+        messageDiv.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add Item';
+      }
+    });
+  </script>
+</body>
+</html>

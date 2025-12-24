@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Payment</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; background: #f8f8f8; padding: 2em; }
+        .container { max-width: 420px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #ccc; }
+        label { display: block; margin-top: 1em; }
+        input[type="number"], input[type="email"] { width: 100%; padding: 0.5em; margin-top: 0.5em; }
+    button { margin-top: 1.5em; padding: 0.7em 2em; background: #c9b037; color: #fff; border: none; border-radius: 4px; font-size: 1em; cursor: pointer; }
+    button[disabled] { background: #999; cursor: not-allowed; }
+    .info { margin-top: 1em; color: #555; }
+    .error { color: #c00; margin-top: 1em; }
+    #card-container { margin-top: 0.75em; border: 1px solid #ccc; border-radius: 4px; padding: 0.75em; }
+    #card-errors { color: #c00; margin-top: 0.5em; min-height: 1.25em; }
+    .status { margin-top: 1em; min-height: 1.5em; }
+    .status.error { color: #c00; }
+    .status.success { color: #0a7a3c; }
+    .method-toggle { display: flex; gap: 1em; flex-wrap: wrap; margin-top: 1.25em; }
+    .method-toggle label { display: flex; align-items: center; gap: 0.4em; font-weight: 600; cursor: pointer; }
+    .section { margin-top: 1.25em; }
+    #ach-section { display: none; }
+    .field-row { display: flex; flex-wrap: wrap; gap: 1em; }
+    .field-row label { flex: 1 1 150px; }
+    .ach-note { background: #eef5ff; border: 1px solid #cbe0ff; border-radius: 4px; padding: 0.75em; color: #1f3b64; font-size: 0.95em; margin-top: 0.75em; }
+    </style>
+    <script src="https://web.squarecdn.com/v1/square.js"></script>
+    <script th:inline="javascript">
+        function currentPaymentMethod() {
+            const selected = document.querySelector('input[name="paymentMethod"]:checked');
+            return selected ? selected.value : 'CARD';
+        }
+
+        function toggleMethodUI() {
+            const method = currentPaymentMethod();
+            document.getElementById('card-section').style.display = method === 'CARD' ? 'block' : 'none';
+            document.getElementById('ach-section').style.display = method === 'ACH' ? 'block' : 'none';
+            document.getElementById('submitBtn').textContent = method === 'CARD' ? 'Pay with Card' : 'Pay with Bank Account';
+            updateFee();
+        }
+
+        function updateFee() {
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
+            const method = currentPaymentMethod();
+            if (method === 'ACH') {
+                document.getElementById('cardFeeInfo').style.display = 'none';
+                document.getElementById('achInfo').style.display = 'block';
+                document.getElementById('fee').textContent = '0.00';
+                document.getElementById('total').textContent = amount.toFixed(2);
+            } else {
+                const rate = 0.029;
+                const fixedFee = 0.30;
+                const total = amount ? Math.round(((amount + fixedFee) / (1 - rate)) * 100) / 100 : 0;
+                document.getElementById('fee').textContent = (total - amount).toFixed(2);
+                document.getElementById('total').textContent = total.toFixed(2);
+                document.getElementById('cardFeeInfo').style.display = 'block';
+                document.getElementById('achInfo').style.display = 'none';
+            }
+        }
+
+        function setStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message || '';
+            statusEl.className = 'status' + (type ? (' ' + type) : '');
+        }
+
+        function achTransactionKey(studentId) {
+            return 'sq-ach-txn-' + studentId;
+        }
+
+        function ensureAchTransactionId(studentId) {
+            const key = achTransactionKey(studentId || 'anon');
+            let existing = null;
+            try {
+                existing = window.sessionStorage.getItem(key);
+            } catch (err) {
+                existing = null;
+            }
+            if (!existing) {
+                const generated = (window.crypto && window.crypto.randomUUID)
+                    ? window.crypto.randomUUID()
+                    : 'ach-' + Math.random().toString(36).slice(2);
+                try {
+                    window.sessionStorage.setItem(key, generated);
+                } catch (err) {
+                    // ignore
+                }
+                existing = generated;
+            }
+            return existing;
+        }
+
+        function baseRedirectUri() {
+            const url = new URL(window.location.href);
+            return url.origin + url.pathname;
+        }
+
+        let sqPayments;
+        let sqCard;
+        let sqAch;
+        let squareAppId = null;
+        let squareLocationId = null;
+
+        async function initializeSquare(studentId) {
+            const submitBtn = document.getElementById('submitBtn');
+            const achRadio = document.getElementById('methodAch');
+
+            if (!window.Square || !squareAppId || !squareLocationId) {
+                setStatus('Payment form could not load. Please contact support.', 'error');
+                submitBtn.disabled = true;
+                return;
+            }
+
+            try {
+                sqPayments = window.Square.payments(squareAppId, squareLocationId);
+                sqCard = await sqPayments.card();
+                await sqCard.attach('#card-container');
+                submitBtn.disabled = false;
+            } catch (err) {
+                console.error('Square init error', err);
+                setStatus('Payment form could not load. Please refresh or contact support.', 'error');
+                submitBtn.disabled = true;
+                return;
+            }
+
+            try {
+                const transactionId = ensureAchTransactionId(studentId);
+                sqAch = await sqPayments.ach({
+                    redirectURI: baseRedirectUri(),
+                    transactionId: transactionId
+                });
+                achRadio.disabled = false;
+            } catch (err) {
+                console.info('ACH init unavailable', err);
+                achRadio.disabled = true;
+                document.getElementById('achNote').textContent = 'Bank payments are unavailable right now. Please use a card payment.';
+                document.getElementById('methodCard').checked = true;
+                toggleMethodUI();
+            }
+        }
+
+        async function tokenizeCard() {
+            const result = await sqCard.tokenize();
+            if (result.status === 'OK') {
+                document.getElementById('card-errors').textContent = '';
+                return { token: result.token, verificationToken: result.verificationToken || null };
+            }
+            const errors = (result.errors || []).map(function(e) { return e.message; }).join(', ');
+            document.getElementById('card-errors').textContent = errors || 'Unable to tokenize card';
+            throw new Error(errors || 'Unable to tokenize card');
+        }
+
+        async function tokenizeAch(amount) {
+            if (!sqAch) {
+                throw new Error('Bank payments are unavailable on this device.');
+            }
+            const firstName = (document.getElementById('achFirstName').value || '').trim();
+            const lastName = (document.getElementById('achLastName').value || '').trim();
+            if (!firstName || !lastName) {
+                throw new Error('Enter the account holder\'s first and last name for bank payments.');
+            }
+            const accountHolderName = (firstName + ' ' + lastName).trim();
+            const result = await sqAch.tokenize({
+                accountHolderName: accountHolderName,
+                intent: 'CHARGE',
+                amount: amount.toFixed(2),
+                currency: 'USD'
+            });
+            if (result.status === 'OK') {
+                return { token: result.token, accountHolderName: accountHolderName };
+            }
+            const errors = (result.errors || []).map(function(e) { return e.message; }).join(', ');
+            throw new Error(errors || 'Unable to verify bank account.');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const formEl = document.getElementById('pay-form');
+            const submitBtn = document.getElementById('submitBtn');
+            const methodRadios = document.querySelectorAll('input[name="paymentMethod"]');
+            const achRadio = document.getElementById('methodAch');
+
+            squareAppId = formEl.dataset.squareAppId || null;
+            squareLocationId = formEl.dataset.squareLocationId || null;
+
+            document.getElementById('amount').addEventListener('input', updateFee);
+            methodRadios.forEach(function(radio) {
+                radio.addEventListener('change', toggleMethodUI);
+            });
+
+            toggleMethodUI();
+
+            formEl.addEventListener('submit', async function(evt) {
+                evt.preventDefault();
+                const method = currentPaymentMethod();
+                const amount = parseFloat(document.getElementById('amount').value);
+
+                if (!amount || amount <= 0) {
+                    setStatus('Enter a valid amount greater than zero.', 'error');
+                    return;
+                }
+
+                if (method === 'CARD' && !sqCard) {
+                    setStatus('Payment form not ready yet. Please wait a moment.', 'error');
+                    return;
+                }
+
+                if (method === 'ACH' && (achRadio.disabled || !sqAch)) {
+                    setStatus('Bank payments are unavailable right now. Please choose card.', 'error');
+                    return;
+                }
+
+                setStatus('Processing payment...', null);
+                submitBtn.disabled = true;
+
+                try {
+                    let tokenInfo;
+                    let verificationToken = null;
+                    let accountHolderName = null;
+
+                    if (method === 'CARD') {
+                        tokenInfo = await tokenizeCard();
+                        verificationToken = tokenInfo.verificationToken;
+                    } else {
+                        tokenInfo = await tokenizeAch(amount);
+                        accountHolderName = tokenInfo.accountHolderName;
+                    }
+
+                    const payload = {
+                        amount: amount.toFixed(2),
+                        studentId: document.getElementById('studentId').value,
+                        sourceId: tokenInfo.token,
+                        paymentMethod: method
+                    };
+
+                    if (verificationToken) {
+                        payload.verificationToken = verificationToken;
+                    }
+
+                    if (accountHolderName) {
+                        payload.accountHolderName = accountHolderName;
+                    }
+
+                    const emailField = document.getElementById('payerEmail');
+                    if (emailField && emailField.value.trim()) {
+                        payload.email = emailField.value.trim();
+                    }
+
+                    const resp = await fetch('/api/payments/charge', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!resp.ok) {
+                        const errBody = await resp.json().catch(function() { return {}; });
+                        throw new Error(errBody.message || 'Charge failed');
+                    }
+
+                    const data = await resp.json();
+
+                    if (method === 'ACH') {
+                        setStatus('Bank payment authorized! Funds move in 1-2 business days. Watch for a receipt email when it completes.', 'success');
+                        if (data.receiptUrl) {
+                            document.getElementById('achInfo').innerHTML = 'You can check the pending receipt anytime: <a href="' + data.receiptUrl + '" target="_blank" rel="noreferrer">open receipt</a>.';
+                            document.getElementById('achInfo').style.display = 'block';
+                        }
+                    } else {
+                        setStatus('Payment successful! Redirecting to receipt...', 'success');
+                        if (data.receiptUrl) {
+                            window.setTimeout(function() { window.location.href = data.receiptUrl; }, 1200);
+                        }
+                    }
+                } catch (err) {
+                    console.error('Payment error', err);
+                    setStatus(err.message || 'Payment failed. Please verify details and try again.', 'error');
+                    submitBtn.disabled = false;
+                    return;
+                }
+            });
+
+            updateFee();
+            initializeSquare(document.getElementById('studentId').value);
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Student Payment</h1>
+        <div th:if="${errorMsg}" class="error">
+            <strong>Error:</strong> <span th:text="${errorMsg}"></span>
+        </div>
+        <div class="info" th:if="${amountDue != null}">
+            Amount Due: $<span th:text="${#numbers.formatDecimal(amountDue, 1, 'COMMA', 2, 'POINT')}">0.00</span>
+        </div>
+      <form id="pay-form" method="POST" th:action="@{/pay/{studentId}(studentId=${studentId})}"
+          th:attr="data-square-app-id=${squareApplicationId},data-square-location-id=${squareLocationId}">
+            <!-- Hidden student id to keep it out of sight; path variable also supplies it -->
+            <input type="hidden" id="studentId" name="studentIdParam" th:value="${studentId}" />
+            <label>Amount to Pay ($):
+                <input type="number" id="amount" name="amount" min="1" max="10000" step="0.01" required />
+            </label>
+            <label>Email (optional, for receipt):
+                <input type="email" id="payerEmail" name="email" placeholder="you@example.com" />
+            </label>
+            <div class="method-toggle">
+                <label><input type="radio" name="paymentMethod" value="CARD" id="methodCard" checked> Card</label>
+                <label><input type="radio" name="paymentMethod" value="ACH" id="methodAch" disabled> Bank Account (ACH)</label>
+            </div>
+            <div class="section" id="card-section">
+                <label>Card Details:</label>
+                <div id="card-container"></div>
+                <div id="card-errors"></div>
+            </div>
+            <div class="section" id="ach-section">
+                <div class="field-row">
+                    <label>Account Holder First Name:
+                        <input type="text" id="achFirstName" autocomplete="given-name" />
+                    </label>
+                    <label>Account Holder Last Name:
+                        <input type="text" id="achLastName" autocomplete="family-name" />
+                    </label>
+                </div>
+                <div class="ach-note" id="achNote">
+                    Bank payments are verified through Plaid. You must use a US checking account.
+                </div>
+            </div>
+            <div class="info" id="cardFeeInfo">
+                Estimated Square Fee: $<span id="fee">0.00</span><br>
+                Total Charged: $<span id="total">0.00</span>
+            </div>
+            <div class="info" id="achInfo" style="display:none;">
+                Bank transfers settle in 1-2 business days with no card surcharge.
+            </div>
+            <button type="submit" id="submitBtn" disabled>Pay with Card</button>
+            <div id="status" class="status"></div>
+        </form>
+
+        <hr style="margin:2em 0;">
+        <h2>Set up automated payments</h2>
+        <p class="info">Choose a cadence and installment amount. We'll schedule invoices until the total due is fully paid. Charges won't continue past the total due.</p>
+        <form method="POST" th:action="@{/pay/{studentId}/plan(studentId=${studentId})}">
+            <label th:if="${amountDue != null}">Total Amount Due ($):
+                <input type="number" name="totalDue" th:value="${amountDue}" step="0.01" readonly style="background: #f0f0f0;" />
+            </label>
+            <label th:if="${amountDue == null}">Total Amount Due ($):
+                <input type="number" name="totalDue" placeholder="Enter total amount owed" min="1" max="100000" step="0.01" required />
+            </label>
+            <label>Email for invoices:
+                <input type="email" name="email" placeholder="you@example.com" required />
+            </label>
+            <label>Cadence:
+                <div>
+                    <label><input type="radio" name="cadence" value="WEEKLY" checked> Weekly</label>
+                    <label style="margin-left:1em;"><input type="radio" name="cadence" value="BIWEEKLY"> Bi-Weekly</label>
+                    <label style="margin-left:1em;"><input type="radio" name="cadence" value="MONTHLY"> Monthly</label>
+                </div>
+            </label>
+            <label>Installment Amount ($):
+                <input type="number" name="installmentAmount" min="1" max="10000" step="0.01" required />
+            </label>
+            <div class="info">
+                Note: The last installment will be adjusted to avoid overpayment.
+            </div>
+            <button type="submit">Start Payment Plan</button>
+        </form>
+    </div>
+</body>
+</html>

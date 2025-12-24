@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gate Check-In Display</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(135deg, #7c5a2a 0%, #c9b037 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+      /* Default background; will be overridden by mode classes */
+      background-image: url('/background.png');
+    }
+    
+    /* Video background */
+    #video-background {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      min-width: 100%;
+      min-height: 100%;
+      width: auto;
+      height: auto;
+      transform: translateX(-50%) translateY(-50%);
+      z-index: -2;
+      object-fit: cover;
+      display: none;
+    }
+    
+    #video-background.active {
+      display: block;
+    }
+    
+    /* Custom background image - replace 'background.jpg' with your uploaded image */
+    /* Remove custom-bg class, always use background.jpg */
+    
+    /* Add a dark overlay for better text readability when using custom background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+  background: linear-gradient(135deg, rgba(60,60,60,0.80) 0%, rgba(120,120,120,0.60) 100%);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Mode-specific backgrounds */
+    body.mode-standby {
+      background-image: url('/standby.jpg');
+    }
+
+    body.mode-checkin {
+      background-image: url('/background.png');
+    }
+
+    /* Standby logo styling */
+    .standby-logo {
+      width: clamp(220px, 45vw, 720px);
+      max-height: clamp(120px, 40vh, 520px);
+      object-fit: contain;
+      margin: 0 auto 1.5rem auto;
+      display: block;
+      filter: drop-shadow(0 6px 24px rgba(0,0,0,0.4));
+    }
+    
+    .container {
+      text-align: center;
+      color: white;
+      padding: 2rem;
+      width: 100%;
+      max-width: 1200px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .standby {
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    
+    .standby.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Responsive overrides for inline standby texts */
+    #standby > div:first-child {
+      /* "Welcome to the 25th Annual" */
+      font-size: clamp(1.5rem, 6vw, 4.5rem) !important;
+      margin-bottom: clamp(0.5rem, 1.5vw, 1.25rem) !important;
+    }
+
+    #standby > div:last-child {
+      /* "Show!" */
+      font-size: clamp(1.8rem, 7vw, 5rem) !important;
+      margin-top: clamp(0.5rem, 1.5vw, 1.25rem) !important;
+    }
+    
+      .standby h1 {
+        font-size: 4.5rem;
+        margin-bottom: 1.5rem;
+        font-weight: 300;
+        letter-spacing: 2px;
+          position: relative;
+          z-index: 1;
+          /* Sparkle effect */
+          overflow: visible;
+          animation: sparkleText 2.5s linear infinite;
+      }
+    
+      .standby .subtitle {
+        font-size: 2.2rem;
+        opacity: 0.85;
+        font-weight: 300;
+          position: relative;
+          z-index: 1;
+          animation: sparkleText 2.5s linear infinite;
+      }
+    
+    .checkin {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+      pointer-events: none;
+    }
+    
+    .checkin.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+    
+    .checkin-content {
+      text-align: center;
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .checkin-icon {
+      font-size: 6rem;
+      margin-bottom: 2rem;
+      animation: bounce 0.6s ease;
+      display: none; /* Hide the check mark icon */
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-30px); }
+    }
+    
+    .checkin-name {
+        font-size: clamp(1.8rem, 4vw + 1rem, 6rem);
+      font-weight: bold;
+      margin-bottom: 0;
+      text-shadow: 0 4px 12px rgba(124,90,42,0.3);
+      line-height: 1.2;
+      background: linear-gradient(135deg, #7c5a2a 0%, #c9b037 100%);
+      color: #fffbe6;
+      border-radius: clamp(12px, 2vw, 28px);
+      padding: clamp(1rem, 2.5vw, 2.5rem) clamp(1.5rem, 3vw, 3rem);
+      box-shadow: 0 4px 32px rgba(124,90,42,0.25);
+      display: inline-block;
+      max-width: 90vw;
+      word-break: break-word;
+      border: 3px solid #c9b037;
+      letter-spacing: 1px;
+        position: relative;
+        z-index: 1;
+        overflow: visible;
+        /* Sparkle effect */
+        animation: sparkleText 2.5s linear infinite;
+      }
+
+      /* Sparkle keyframes and pseudo-element */
+      @keyframes sparkleText {
+        0% {
+          filter: drop-shadow(0 0 8px #fffbe6) drop-shadow(0 0 2px #fffbe6);
+        }
+        20% {
+          filter: drop-shadow(0 0 16px #fffbe6) drop-shadow(0 0 8px #ffe066);
+        }
+        40% {
+          filter: drop-shadow(0 0 24px #fffbe6) drop-shadow(0 0 12px #fffbe6);
+        }
+        60% {
+          filter: drop-shadow(0 0 16px #fffbe6) drop-shadow(0 0 8px #ffe066);
+        }
+        80% {
+          filter: drop-shadow(0 0 8px #fffbe6) drop-shadow(0 0 2px #fffbe6);
+        }
+        100% {
+          filter: drop-shadow(0 0 8px #fffbe6) drop-shadow(0 0 2px #fffbe6);
+        }
+      }
+    
+    
+      .checkin-details {
+        font-size: clamp(1.2rem, 2.5vw, 3rem);
+        opacity: 0.97;
+        margin-top: clamp(0.5rem, 1.2vw, 1.4rem);
+      }
+    
+      .checkin-ticket {
+        font-size: clamp(1rem, 2vw, 2.4rem);
+        opacity: 0.9;
+        margin-top: clamp(0.3rem, 0.8vw, 0.9rem);
+        font-weight: 300;
+      }
+    
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      color: white;
+      display: none; /* Hidden by default; shown only on error */
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    /* Error-only state */
+    .status-indicator.error {
+      display: flex;
+      background: rgba(255, 77, 79, 0.25);
+      box-shadow: 0 4px 16px rgba(255, 77, 79, 0.25);
+    }
+    
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #38ef7d; /* default (won't be seen since hidden) */
+      animation: pulse 2s infinite;
+    }
+
+    .status-indicator.error .status-dot {
+      background: #ff4d4f;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    @media (max-width: 768px) {
+        .standby h1 {
+          font-size: 3rem;
+        }
+      
+        .standby .subtitle {
+          font-size: 1.8rem;
+        }
+      
+        .standby .stat-value {
+          font-size: 3.5rem;
+        }
+      
+        .checkin-name {
+          font-size: 3.2rem;
+        }
+      
+        .checkin-details {
+          font-size: 2rem;
+        }
+      }
+  </style>
+</head>
+<body>
+  <video id="video-background" autoplay muted loop playsinline>
+    <source src="/background.mp4" type="video/mp4">
+    <source src="/background.mov" type="video/quicktime">
+    <source src="/background.webm" type="video/webm">
+  </video>
+
+  <div class="status-indicator">
+    <div class="status-dot"></div>
+    <span id="status-text">Connected</span>
+  </div>
+
+  <div class="container">
+    <div class="standby" id="standby">
+      <div style="text-align:center; margin-bottom:1rem; font-size:4rem; font-weight:600; color:#fffbe6; text-shadow:0 2px 8px #7c5a2a; letter-spacing:1px;">Welcome to the 25th Annual</div>
+      <img src="/logo.png" alt="Event Logo" class="standby-logo" onerror="this.style.display='none'" />
+  <div style="text-align:center; margin-top:1rem; font-size:4.5rem; font-weight:700; color:#fff; text-shadow:0 2px 8px #7c5a2a; letter-spacing:2px;">Show!</div>
+    </div>
+
+    <div class="checkin" id="checkin">
+      <div class="checkin-content">
+        <div class="checkin-icon">✓</div>
+        <div class="checkin-name" id="checkin-name">Welcome!</div>
+        <div class="checkin-details" id="checkin-details"></div>
+        <div class="checkin-ticket" id="checkin-ticket"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const standby = document.getElementById('standby');
+    const checkin = document.getElementById('checkin');
+    const checkinName = document.getElementById('checkin-name');
+    const checkinDetails = document.getElementById('checkin-details');
+    const checkinTicket = document.getElementById('checkin-ticket');
+    const statusText = document.getElementById('status-text');
+    const statusIndicator = document.querySelector('.status-indicator');
+
+    function showStatusError(message = 'Connection Error') {
+      statusText.textContent = message;
+      statusIndicator.classList.add('error');
+    }
+
+    function hideStatusError() {
+      statusIndicator.classList.remove('error');
+    }
+
+  let lastScanId = null;
+  let initialLoad = true;
+    let isShowingCheckin = false;
+    let inactivityTimer = null;
+    
+    // Check for video background first, then fall back to image
+    const video = document.getElementById('video-background');
+    
+    // Preload backgrounds and set standby only if available
+    const bgImg = new Image();
+    bgImg.src = '/background.png';
+    const standbyImg = new Image();
+    standbyImg.onload = () => {
+      document.body.classList.add('mode-standby');
+    };
+    standbyImg.onerror = () => {
+      document.body.classList.remove('mode-standby');
+    };
+  standbyImg.src = '/standby.jpg';
+
+    // Function to show a check-in
+    function showCheckin(scan) {
+      // Build the name
+      let name = 'Guest';
+      if (scan.participantBillingName) {
+        name = scan.participantBillingName;
+      } else if (scan.email) {
+        name = scan.email;
+      }
+      // Show only the welcome message
+      checkinName.textContent = `Welcome to the 25th Annual Kenton Ridge Band Show ${name}`;
+      checkinDetails.textContent = '';
+      checkinTicket.textContent = '';
+      
+      // Show check-in screen & switch background
+      document.body.classList.remove('mode-standby');
+      document.body.classList.add('mode-checkin');
+      standby.classList.add('hidden');
+      checkin.classList.add('active');
+      isShowingCheckin = true;
+      
+      // Clear any existing inactivity timer
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
+      
+      // Set timer to return to standby after 10 seconds (10000ms)
+      inactivityTimer = setTimeout(() => {
+        checkin.classList.remove('active');
+        setTimeout(() => {
+          // Switch back to standby background
+          document.body.classList.remove('mode-checkin');
+          document.body.classList.add('mode-standby');
+          standby.classList.remove('hidden');
+          isShowingCheckin = false;
+        }, 400); // Wait for fade out animation
+      }, 10000); // 10 seconds
+    }
+
+    // Function to fetch latest scans
+    async function fetchScans() {
+      try {
+        const res = await fetch('/webhook/simpletix/scans?limit=10', { cache: 'no-store' });
+        if (!res.ok) {
+          showStatusError('Connection Error');
+          return;
+        }
+        const data = await res.json();
+        hideStatusError();
+        // Only show check-in if not initial load and a new scan is detected
+        if (data.length > 0) {
+          const latestScan = data[0];
+          if (initialLoad) {
+            lastScanId = latestScan.id;
+            initialLoad = false;
+            return;
+          }
+          if (latestScan.id !== lastScanId) {
+            lastScanId = latestScan.id;
+            showCheckin(latestScan);
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching scans:', e);
+        showStatusError('Connection Error');
+      }
+    }
+
+    // Poll for new scans every 2 seconds
+    setInterval(fetchScans, 2000);
+    
+    // Initial fetch
+    fetchScans();
+  </script>
+</body>
+</html>

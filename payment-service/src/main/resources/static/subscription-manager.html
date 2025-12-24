@@ -1,0 +1,1806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            color: #667eea;
+        }
+
+        .sidebar-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .sidebar-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            user-select: none;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            border-left-color: #667eea;
+        }
+
+        .sidebar-item.active {
+            background: rgba(102, 126, 234, 0.2);
+            border-left-color: #667eea;
+            color: #667eea;
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .user-info {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            color: #bdc3c7;
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 10px;
+            background: #e74c3c;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            background: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .top-bar-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e67e22;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .table thead {
+            background: #ecf0f1;
+        }
+
+        .table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #bdc3c7;
+        }
+
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-pending {
+            background: #fef5e7;
+            color: #f39c12;
+        }
+
+        .status-canceled {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .status-completed {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-rejected {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .status-processing {
+            background: #d6eaf8;
+            color: #3498db;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d5f4e6;
+            color: #27ae60;
+            border: 1px solid #27ae60;
+        }
+
+        .alert-error {
+            background: #fadbd8;
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .alert-info {
+            background: #d6eaf8;
+            color: #3498db;
+            border: 1px solid #3498db;
+        }
+
+        .alert-warning {
+            background: #fef5e7;
+            color: #f39c12;
+            border: 1px solid #f39c12;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.3s;
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .modal-close {
+            float: right;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .modal-close:hover {
+            color: #2c3e50;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .pagination {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #bdc3c7;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+
+        .pagination button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination button:hover:not(.active) {
+            background: #ecf0f1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ecf0f1;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .top-bar {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+
+            .table {
+                font-size: 0.9rem;
+            }
+
+            .table th, .table td {
+                padding: 8px;
+            }
+        }
+
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .permission-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .permission-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .permission-item label {
+            flex: 1;
+            margin: 0;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Page -->
+    <div id="loginPage" class="login-container">
+        <div class="login-box">
+            <div class="login-title">Subscription Manager</div>
+            <div id="loginError" class="alert alert-error" style="display: none;"></div>
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="Enter your username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Log In</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" style="display: none; width: 100%; display: flex;">
+        <div class="sidebar">
+            <div class="sidebar-header">📦 Subscriptions</div>
+            <div class="sidebar-menu">
+                <div class="sidebar-item active" data-page="dashboard">📊 Dashboard</div>
+                <div class="sidebar-item" data-page="subscriptions">📋 Subscriptions</div>
+                <div class="sidebar-item" data-page="refunds">💰 Refunds</div>
+                <div id="adminMenu" class="sidebar-item" data-page="admin" style="display: none;">👤 Admin Panel</div>
+                <a href="/docs" style="text-decoration: none; color: inherit;">
+                    <div class="sidebar-item">📚 Documentation</div>
+                </a>
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <strong>Logged in as:</strong><br>
+                    <span id="currentUser"></span>
+                </div>
+                <button class="logout-btn" id="logoutBtn">Log Out</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="top-bar">
+                <div class="top-bar-title" id="pageTitle">Dashboard</div>
+            </div>
+
+            <div class="content-area">
+                <!-- Dashboard Page -->
+                <div id="dashboard" class="page active">
+                    <div class="stats-grid" id="statsGrid"></div>
+
+                    <div class="card">
+                        <div class="card-title">Recent Activity</div>
+                        <div id="recentActivity"></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Quick Actions</div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                            <button class="btn btn-primary" onclick="goToPage('subscriptions')">View Subscriptions</button>
+                            <button class="btn btn-warning" onclick="goToPage('refunds')">Manage Refunds</button>
+                            <button class="btn btn-secondary" onclick="loadStats()">Refresh Stats</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subscriptions Page -->
+                <div id="subscriptions" class="page">
+                    <div class="card">
+                        <div class="card-title">Subscriptions</div>
+                        
+                        <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="openCreateSubscriptionModal()">+ New Subscription</button>
+                            <select id="statusFilter" class="form-group" style="width: auto; padding: 8px; border: 1px solid #bdc3c7; border-radius: 6px;">
+                                <option value="">All Status</option>
+                                <option value="ACTIVE">Active</option>
+                                <option value="PAUSED">Paused</option>
+                                <option value="CANCELED">Canceled</option>
+                                <option value="PENDING">Pending</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="syncFromSquare()">Sync from Square</button>
+                            <button class="btn btn-secondary" onclick="loadSubscriptions()">Refresh</button>
+                        </div>
+
+                        <table class="table" id="subscriptionsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Customer Name</th>
+                                    <th>Customer Email</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Square ID</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subscriptionsBody">
+                                <tr><td colspan="8" style="text-align: center; padding: 40px;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                        <div id="subscriptionsPagination" class="pagination"></div>
+                    </div>
+                </div>
+
+                <!-- Refunds Page -->
+                <div id="refunds" class="page">
+                    <div class="card">
+                        <div class="card-title">Refunds</div>
+                        
+                        <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="openRequestRefundModal()">+ Request Refund</button>
+                            <select id="refundStatusFilter" class="form-group" style="width: auto; padding: 8px; border: 1px solid #bdc3c7; border-radius: 6px;">
+                                <option value="">All Status</option>
+                                <option value="REQUESTED">Requested</option>
+                                <option value="PENDING_APPROVAL">Pending Approval</option>
+                                <option value="APPROVED">Approved</option>
+                                <option value="REJECTED">Rejected</option>
+                                <option value="COMPLETED">Completed</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="loadRefunds()">Refresh</button>
+                        </div>
+
+                        <table class="table" id="refundsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Subscription</th>
+                                    <th>Requested Amount</th>
+                                    <th>Status</th>
+                                    <th>Fee</th>
+                                    <th>Approved By</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="refundsBody">
+                                <tr><td colspan="8" style="text-align: center; padding: 40px;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                        <div id="refundsPagination" class="pagination"></div>
+                    </div>
+                </div>
+
+                <!-- Admin Panel -->
+                <div id="admin" class="page">
+                    <div class="card">
+                        <div class="card-title">Admin Panel - User Management</div>
+                        
+                        <button class="btn btn-primary" onclick="openCreateUserModal()" style="margin-bottom: 15px;">+ Create User</button>
+
+                        <table class="table" id="usersTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Username</th>
+                                    <th>Email</th>
+                                    <th>Active</th>
+                                    <th>Permissions</th>
+                                    <th>Last Login</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersBody">
+                                <tr><td colspan="7" style="text-align: center; padding: 40px;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Pending Refund Approvals</div>
+                        
+                        <table class="table" id="pendingRefundsTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Subscription</th>
+                                    <th>Requested Amount</th>
+                                    <th>Processing Fee</th>
+                                    <th>Net Refund</th>
+                                    <th>Requested By</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingRefundsBody">
+                                <tr><td colspan="7" style="text-align: center; padding: 40px;">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Create Subscription Modal -->
+    <div id="createSubscriptionModal" class="modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('createSubscriptionModal')">&times;</span>
+                Create Payment Plan (Recurring Invoices)
+            </div>
+            <div style="background: #e7f3ff; border-left: 4px solid #2196F3; padding: 12px; margin-bottom: 20px; border-radius: 4px;">
+                <strong>ℹ️ How it works:</strong> This creates a payment plan with recurring invoices. The subscription automatically cancels when the customer pays the total amount owed.
+            </div>
+            <form id="createSubscriptionForm">
+                <h4 style="margin-bottom: 15px; color: #2c3e50;">Customer Information</h4>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1.2;">
+                        <label>Customer Email (Lookup) *</label>
+                        <div style="position: relative;">
+                            <input type="email" id="customerEmailLookup" placeholder="Start typing email..." autocomplete="off" required>
+                            <div id="emailSuggestions" style="position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; display: none; z-index: 1000; border-radius: 0 0 4px 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            </div>
+                        </div>
+                        <small style="color: #7f8c8d; margin-top: 4px; display: block;">Type to search existing customers or add new</small>
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Square Customer ID *</label>
+                        <input type="text" id="squareCustId" placeholder="Auto-populated" readonly style="background-color: #ecf0f1; cursor: not-allowed;">
+                    </div>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button type="button" onclick="openModal('addCustomerModal')" style="background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">+ Add New Customer</button>
+                </div>
+
+                <h4 style="margin-bottom: 15px; color: #2c3e50;">Payment Plan Details</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Total Amount Owed ($) *</label>
+                        <input type="number" id="totalAmount" placeholder="e.g., 1000.00" step="0.01" min="0.01" required>
+                        <small style="color: #7f8c8d;">Total amount customer must pay to complete plan</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount Per Invoice ($) *</label>
+                        <input type="number" id="amountPerPayment" placeholder="e.g., 100.00" step="0.01" min="0.01" required>
+                        <small style="color: #7f8c8d;">Amount for each recurring invoice</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Invoice Frequency *</label>
+                        <select id="paymentFrequency" required>
+                            <option value="">Select frequency...</option>
+                            <option value="DAILY">Daily</option>
+                            <option value="WEEKLY">Weekly</option>
+                            <option value="BIWEEKLY">Bi-weekly</option>
+                            <option value="MONTHLY">Monthly</option>
+                            <option value="QUARTERLY">Quarterly</option>
+                            <option value="YEARLY">Yearly</option>
+                        </select>
+                        <small style="color: #7f8c8d;">How often invoices are sent</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Estimated Completion Date *</label>
+                        <input type="date" id="estimatedEndDate" required>
+                        <small style="color: #7f8c8d;">Expected date when plan completes</small>
+                    </div>
+                </div>
+
+                <h4 style="margin-bottom: 15px; color: #2c3e50;">Square Integration (Optional)</h4>
+                <div class="form-group">
+                    <label>Square Subscription ID</label>
+                    <input type="text" id="squareSubId" placeholder="Leave blank if creating new">
+                    <small style="color: #7f8c8d;">Only fill if syncing existing Square subscription</small>
+                </div>
+                <div class="form-group">
+                    <label>Plan Name/ID</label>
+                    <input type="text" id="squarePlanId" placeholder="e.g., MONTHLY_PLAN">
+                    <small style="color: #7f8c8d;">Optional - helps organize invoices</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Description (optional)</label>
+                    <textarea id="subscriptionDescription" placeholder="e.g., Tuition payment plan for Fall 2025" style="min-height: 60px;"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createSubscriptionModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Subscription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Customer Modal -->
+    <div id="addCustomerModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('addCustomerModal')">&times;</span>
+                Add New Customer
+            </div>
+            <form id="addCustomerForm">
+                <div class="form-group">
+                    <label>Customer Email *</label>
+                    <input type="email" id="newCustomerEmail" placeholder="customer@example.com" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Name</label>
+                        <input type="text" id="newCustomerFirstName" placeholder="John">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name</label>
+                        <input type="text" id="newCustomerLastName" placeholder="Doe">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Phone (optional)</label>
+                        <input type="tel" id="newCustomerPhone" placeholder="(555) 123-4567">
+                    </div>
+                    <div class="form-group">
+                        <label>Address (optional)</label>
+                        <input type="text" id="newCustomerAddress" placeholder="123 Main St">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addCustomerModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Request Refund Modal -->
+    <div id="requestRefundModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('requestRefundModal')">&times;</span>
+                Request Refund
+            </div>
+            <form id="requestRefundForm">
+                <div class="form-group">
+                    <label>Subscription</label>
+                    <select id="refundSubscriptionId" required>
+                        <option value="">Select a subscription...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Requested Amount ($)</label>
+                    <input type="number" id="requestedAmount" placeholder="e.g., 100.00" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Reason (optional)</label>
+                    <textarea id="refundReason"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('requestRefundModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Request Refund</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Approve Refund Modal -->
+    <div id="approveRefundModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('approveRefundModal')">&times;</span>
+                Approve Refund
+            </div>
+            <form id="approveRefundForm">
+                <input type="hidden" id="approveRefundId">
+                <div class="form-group">
+                    <label>Requested Amount</label>
+                    <input type="text" id="approveRequestedAmount" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Processing Fee (2.5%)</label>
+                    <input type="text" id="approveFeeAmount" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Net Refund Amount</label>
+                    <input type="text" id="approveNetAmount" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Approval Notes (optional)</label>
+                    <textarea id="approvalNotes"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('approveRefundModal')">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="rejectRefund()">Reject</button>
+                    <button type="submit" class="btn btn-success">Approve</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('createUserModal')">&times;</span>
+                Create User
+            </div>
+            <form id="createUserForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="newUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="newEmail" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="newFullName" placeholder="e.g., John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="newPassword" required>
+                </div>
+                <div class="form-group">
+                    <label>Permissions</label>
+                    <div id="permissionsList"></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createUserModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subscription Details Modal -->
+    <div id="subscriptionDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-close" onclick="closeModal('subscriptionDetailsModal')">&times;</span>
+                Subscription Details
+            </div>
+            <div id="subscriptionDetails"></div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('subscriptionDetailsModal')">Close</button>
+                <button type="button" class="btn btn-warning" id="pauseSubBtn" onclick="pauseSubscription()">Pause</button>
+                <button type="button" class="btn btn-danger" id="cancelSubBtn" onclick="cancelSubscription()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        const state = {
+            currentUser: null,
+            token: null,
+            currentPage: 'dashboard',
+            permissions: [],
+            subscriptionsPage: 0,
+            refundsPage: 0
+        };
+
+        const API_BASE = '/api';
+
+        // Helper Functions
+        function showPage(pageName) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageName).classList.add('active');
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.page === pageName) {
+                    item.classList.add('active');
+                }
+            });
+            state.currentPage = pageName;
+
+            const titles = {
+                dashboard: 'Dashboard',
+                subscriptions: 'Subscriptions',
+                refunds: 'Refunds',
+                admin: 'Admin Panel'
+            };
+            document.getElementById('pageTitle').textContent = titles[pageName] || 'Page';
+        }
+
+        function goToPage(pageName) {
+            showPage(pageName);
+            if (pageName === 'subscriptions') loadSubscriptions();
+            if (pageName === 'refunds') loadRefunds();
+            if (pageName === 'admin') loadAdminPanel();
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function getHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + btoa(state.currentUser + ':' + state.token)
+            };
+        }
+
+        async function apiCall(method, endpoint, data = null) {
+            const options = {
+                method,
+                headers: getHeaders()
+            };
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            const response = await fetch(API_BASE + endpoint, options);
+            if (response.status === 401) {
+                logout();
+                throw new Error('Unauthorized');
+            }
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+                throw new Error(error.message || `Error: ${response.status}`);
+            }
+            return response.json().catch(() => ({}));
+        }
+
+        function showAlert(type, message) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alert.style.position = 'fixed';
+            alert.style.top = '20px';
+            alert.style.right = '20px';
+            alert.style.zIndex = '2000';
+            alert.style.maxWidth = '400px';
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        function formatCurrency(cents) {
+            return '$' + (cents / 100).toFixed(2);
+        }
+
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString() + ' ' + new Date(dateString).toLocaleTimeString();
+        }
+
+        function getStatusClass(status) {
+            const statusClasses = {
+                'ACTIVE': 'status-active',
+                'PENDING': 'status-pending',
+                'CANCELED': 'status-canceled',
+                'COMPLETED': 'status-completed',
+                'REJECTED': 'status-rejected',
+                'PROCESSING': 'status-processing',
+                'APPROVED': 'status-completed',
+                'PAUSED': 'status-pending'
+            };
+            return statusClasses[status] || 'status-pending';
+        }
+
+        // Authentication
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(API_BASE + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = errorData.error || `Login failed: ${response.status} ${response.statusText}`;
+                    console.error('Login error:', errorMessage, errorData);
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
+                state.currentUser = username;
+                state.token = password;
+                state.permissions = data.permissions || [];
+
+                document.getElementById('loginPage').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'flex';
+                document.getElementById('currentUser').textContent = username;
+
+                // Show admin menu if has admin permissions
+                const hasAdminPerm = state.permissions.some(p => 
+                    p.includes('MANAGE_USERS') || p.includes('APPROVE_REFUNDS') || p.includes('SYSTEM_ADMIN')
+                );
+                document.getElementById('adminMenu').style.display = hasAdminPerm ? 'block' : 'none';
+
+                loadStats();
+            } catch (error) {
+                console.error('Login exception:', error);
+                document.getElementById('loginError').textContent = error.message;
+                document.getElementById('loginError').style.display = 'block';
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        function logout() {
+            state.currentUser = null;
+            state.token = null;
+            state.permissions = [];
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('loginForm').reset();
+            document.getElementById('loginError').style.display = 'none';
+            document.getElementById('currentUser').textContent = '';
+            document.getElementById('adminMenu').style.display = 'none';
+        }
+
+        // Dashboard
+        async function loadStats() {
+            try {
+                const subsResponse = await apiCall('GET', '/subscriptions');
+                const refundsResponse = await apiCall('GET', '/refunds');
+
+                const activeCount = subsResponse.content?.filter(s => s.status === 'ACTIVE').length || 0;
+                const pendingRefunds = refundsResponse.content?.filter(r => r.status === 'PENDING_APPROVAL').length || 0;
+                const totalAmount = (subsResponse.content || []).reduce((sum, s) => sum + (s.amountPaid || 0), 0);
+                const totalRefunded = (refundsResponse.content || []).reduce((sum, r) => sum + (r.approvedAmount || 0), 0);
+
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-label">Active Subscriptions</div>
+                        <div class="stat-value">${activeCount}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Pending Approvals</div>
+                        <div class="stat-value">${pendingRefunds}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Amount Paid</div>
+                        <div class="stat-value">${formatCurrency(totalAmount)}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Refunded</div>
+                        <div class="stat-value">${formatCurrency(totalRefunded)}</div>
+                    </div>
+                `;
+
+                const recent = (subsResponse.content || []).slice(0, 5);
+                document.getElementById('recentActivity').innerHTML = recent.length > 0 
+                    ? `<ul style="list-style: none;">${recent.map(s => 
+                        `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1;">
+                            ${s.customerEmail} - ${formatCurrency(s.amountPaid || 0)} 
+                            <span class="status-badge ${getStatusClass(s.status)}">${s.status}</span>
+                        </li>`).join('')}</ul>`
+                    : '<p style="text-align: center; color: #7f8c8d;">No recent activity</p>';
+
+            } catch (error) {
+                showAlert('error', 'Failed to load stats: ' + error.message);
+            }
+        }
+
+        // Subscriptions
+        async function loadSubscriptions(page = 0) {
+            try {
+                // First, sync all subscription statuses from Square
+                try {
+                    const syncResult = await apiCall('POST', '/subscriptions/sync-all-status');
+                    console.debug('Subscription status sync result:', syncResult);
+                } catch (syncError) {
+                    console.warn('Failed to sync subscription statuses from Square:', syncError.message);
+                    // Continue anyway - show cached statuses if sync fails
+                }
+
+                const statusFilter = document.getElementById('statusFilter')?.value || '';
+                const query = statusFilter ? `?status=${statusFilter}&page=${page}&size=10` : `?page=${page}&size=10`;
+                console.log('Loading subscriptions from:', '/subscriptions' + query);
+                const data = await apiCall('GET', '/subscriptions' + query);
+                console.log('Subscriptions response:', data);
+
+                const tbody = document.getElementById('subscriptionsBody');
+                tbody.innerHTML = '';
+
+                if (!data.content || data.content.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">No subscriptions found</td></tr>';
+                    document.getElementById('subscriptionsPagination').innerHTML = '';
+                    return;
+                }
+
+                console.log('Rendering subscriptions:', data.content.length);
+                data.content.forEach((sub, idx) => {
+                    console.log(`Sub ${idx}:`, sub.id, sub.customerEmail, sub.status);
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${sub.id}</td>
+                        <td>${sub.customerName || 'N/A'}</td>
+                        <td>${sub.customerEmail || 'N/A'}</td>
+                        <td>${formatCurrency(sub.amount || 0)}</td>
+                        <td><span class="status-badge ${getStatusClass(sub.status)}">${sub.status || 'UNKNOWN'}</span></td>
+                        <td>${sub.squareSubscriptionId || 'N/A'}</td>
+                        <td>${formatDate(sub.createdAt) || 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-primary btn-small" onclick="viewSubscriptionDetails(${sub.id})">View</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                    console.log(`Appended row for sub ${sub.id}`);
+                });
+
+                // Pagination
+                let paginationHtml = '';
+                for (let i = 0; i < data.totalPages; i++) {
+                    paginationHtml += `<button onclick="loadSubscriptions(${i})" class="${i === page ? 'active' : ''}">${i + 1}</button>`;
+                }
+                document.getElementById('subscriptionsPagination').innerHTML = paginationHtml;
+                state.subscriptionsPage = page;
+
+            } catch (error) {
+                console.error('Error loading subscriptions:', error);
+                showAlert('error', 'Failed to load subscriptions: ' + error.message);
+            }
+        }
+
+        function openCreateSubscriptionModal() {
+            if (!state.permissions.includes('MANAGE_SUBSCRIPTIONS') && !state.permissions.includes('SYSTEM_ADMIN')) {
+                showAlert('error', 'You do not have permission to create subscriptions');
+                return;
+            }
+            openModal('createSubscriptionModal');
+        }
+
+        // Customer Email Lookup
+        let customerCache = [];
+        
+        document.getElementById('customerEmailLookup')?.addEventListener('input', async (e) => {
+            const query = e.target.value.trim();
+            const suggestionsDiv = document.getElementById('emailSuggestions');
+            
+            if (!query) {
+                suggestionsDiv.style.display = 'none';
+                document.getElementById('squareCustId').value = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/subscriptions/search?query=${encodeURIComponent(query)}`);
+                const responseData = await response.json();
+                
+                // Extract unique customers from paginated response
+                const uniqueCustomers = {};
+                const subscriptions = responseData.content || [];
+                subscriptions.forEach(sub => {
+                    if (sub.customerEmail && !uniqueCustomers[sub.customerEmail]) {
+                        uniqueCustomers[sub.customerEmail] = sub.squareCustomerId;
+                    }
+                });
+                
+                customerCache = Object.keys(uniqueCustomers).map(email => ({
+                    email,
+                    squareCustomerId: uniqueCustomers[email]
+                }));
+                
+                if (customerCache.length === 0) {
+                    suggestionsDiv.innerHTML = `<div style="padding: 10px; color: #7f8c8d;">No matching customers found</div>`;
+                } else {
+                    suggestionsDiv.innerHTML = customerCache
+                        .map(customer => `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #ecf0f1; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" onclick="selectCustomer('${customer.email}', '${customer.squareCustomerId}')">${customer.email}</div>`)
+                        .join('');
+                }
+                suggestionsDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Error searching customers:', error);
+                suggestionsDiv.innerHTML = `<div style="padding: 10px; color: #e74c3c;">Error loading customers</div>`;
+                suggestionsDiv.style.display = 'block';
+            }
+        });
+        
+        function selectCustomer(email, squareCustomerId) {
+            document.getElementById('customerEmailLookup').value = email;
+            document.getElementById('squareCustId').value = squareCustomerId;
+            document.getElementById('emailSuggestions').style.display = 'none';
+        }
+        
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target.id !== 'customerEmailLookup' && e.target.id !== 'emailSuggestions') {
+                document.getElementById('emailSuggestions').style.display = 'none';
+            }
+        });
+        
+        // Add Customer Form
+        document.getElementById('addCustomerForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const email = document.getElementById('newCustomerEmail').value.trim();
+                const firstName = document.getElementById('newCustomerFirstName').value.trim();
+                const lastName = document.getElementById('newCustomerLastName').value.trim();
+                const phone = document.getElementById('newCustomerPhone').value.trim();
+                const address = document.getElementById('newCustomerAddress').value.trim();
+                
+                if (!email) {
+                    showAlert('error', 'Email is required');
+                    return;
+                }
+                
+                // Create customer in Square
+                const customerResponse = await fetch('/api/subscriptions/square/customers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email,
+                        givenName: firstName,
+                        familyName: lastName,
+                        phoneNumber: phone || undefined,
+                        address: address || undefined
+                    })
+                });
+                
+                if (!customerResponse.ok) {
+                    const errorData = await customerResponse.json();
+                    throw new Error(errorData.message || 'Failed to create customer');
+                }
+                
+                const customer = await customerResponse.json();
+                
+                // Auto-populate the form fields
+                document.getElementById('customerEmailLookup').value = email;
+                document.getElementById('squareCustId').value = customer.id;
+                
+                showAlert('success', `Customer ${email} added successfully!`);
+                closeModal('addCustomerModal');
+                document.getElementById('addCustomerForm').reset();
+            } catch (error) {
+                showAlert('error', 'Failed to add customer: ' + error.message);
+            }
+        });
+
+        document.getElementById('createSubscriptionForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const totalAmount = parseFloat(document.getElementById('totalAmount').value);
+                const amountPerPayment = parseFloat(document.getElementById('amountPerPayment').value);
+                const squareCustId = document.getElementById('squareCustId').value.trim();
+                const customerEmail = document.getElementById('customerEmailLookup').value.trim();
+                
+                // Validation
+                if (!squareCustId) {
+                    showAlert('error', 'Please select a customer');
+                    return;
+                }
+                if (!customerEmail) {
+                    showAlert('error', 'Customer Email is required');
+                    return;
+                }
+                if (amountPerPayment > totalAmount) {
+                    showAlert('error', 'Amount per invoice cannot exceed total amount owed');
+                    return;
+                }
+                if (amountPerPayment <= 0 || totalAmount <= 0) {
+                    showAlert('error', 'Amounts must be greater than zero');
+                    return;
+                }
+                
+                // Calculate number of payments
+                const numPayments = Math.ceil(totalAmount / amountPerPayment);
+                
+                // Generate subscription ID if not provided
+                const squareSubId = document.getElementById('squareSubId').value.trim() || `PLAN_${Date.now()}`;
+                const squarePlanId = document.getElementById('squarePlanId').value.trim() || 'INVOICE_PLAN';
+                
+                await apiCall('POST', '/subscriptions', {
+                    squareSubscriptionId: squareSubId,
+                    squareCustomerId: squareCustId,
+                    squarePlanId: squarePlanId,
+                    customerEmail: customerEmail,
+                    amount: Math.round(totalAmount * 100),
+                    amountPerPayment: Math.round(amountPerPayment * 100),
+                    frequency: document.getElementById('paymentFrequency').value,
+                    estimatedEndDate: document.getElementById('estimatedEndDate').value,
+                    description: document.getElementById('subscriptionDescription').value || null,
+                    numberOfPayments: numPayments
+                });
+                showAlert('success', `Payment plan created successfully!\n${numPayments} invoices of $${amountPerPayment.toFixed(2)}\nPlan auto-cancels when $${totalAmount.toFixed(2)} is paid`);
+                closeModal('createSubscriptionModal');
+                document.getElementById('createSubscriptionForm').reset();
+                document.getElementById('squareCustId').value = '';
+                document.getElementById('customerEmailLookup').value = '';
+                loadSubscriptions();
+            } catch (error) {
+                showAlert('error', 'Failed to create payment plan: ' + error.message);
+            }
+        });
+
+        async function viewSubscriptionDetails(id) {
+            try {
+                const data = await apiCall('GET', `/subscriptions/${id}`);
+                const details = document.getElementById('subscriptionDetails');
+                
+                // Calculate payment progress
+                const totalAmount = data.amount || 0;
+                const amountPaid = data.amountPaid || 0;
+                const remaining = totalAmount - amountPaid;
+                const percentPaid = totalAmount > 0 ? (amountPaid / totalAmount * 100).toFixed(1) : 0;
+                
+                details.innerHTML = `
+                    <div style="margin-bottom: 15px;">
+                        <p><strong>ID:</strong> ${data.id}</p>
+                        <p><strong>Customer Name:</strong> ${data.customerName || 'N/A'}</p>
+                        <p><strong>Customer Email:</strong> ${data.customerEmail}</p>
+                        <p><strong>Status:</strong> <span class="status-badge ${getStatusClass(data.status)}">${data.status}</span></p>
+                        
+                        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <h4 style="margin-bottom: 10px; color: #2c3e50;">Payment Progress</h4>
+                            <div style="background: #e9ecef; border-radius: 10px; height: 24px; overflow: hidden; margin-bottom: 10px;">
+                                <div style="background: ${remaining <= 0 ? '#28a745' : '#667eea'}; height: 100%; width: ${percentPaid}%; transition: width 0.3s;"></div>
+                            </div>
+                            <p><strong>Total Amount Owed:</strong> ${formatCurrency(totalAmount)}</p>
+                            <p><strong>Amount Paid:</strong> ${formatCurrency(amountPaid)} (${percentPaid}%)</p>
+                            <p><strong>Remaining Balance:</strong> ${formatCurrency(Math.max(0, remaining))}</p>
+                        </div>
+                        
+                        <h4 style="margin: 15px 0 10px; color: #2c3e50;">Payment Plan Details</h4>
+                        <p><strong>Amount Per Payment:</strong> ${data.amountPerPayment ? formatCurrency(data.amountPerPayment) : 'N/A'}</p>
+                        <p><strong>Payment Frequency:</strong> ${data.frequency || 'N/A'}</p>
+                        <p><strong>Number of Payments:</strong> ${data.numberOfPayments || 'N/A'}</p>
+                        <p><strong>Estimated End Date:</strong> ${data.estimatedEndDate ? formatDate(data.estimatedEndDate) : 'N/A'}</p>
+                        
+                        <h4 style="margin: 15px 0 10px; color: #2c3e50;">Square Integration</h4>
+                        <p><strong>Square Subscription ID:</strong> ${data.squareSubscriptionId || 'N/A'}</p>
+                        <p><strong>Square Customer ID:</strong> ${data.squareCustomerId}</p>
+                        <p><strong>Created:</strong> ${formatDate(data.createdAt)}</p>
+                        <p><strong>Last Updated:</strong> ${formatDate(data.updatedAt)}</p>
+                    </div>
+                `;
+                document.getElementById('currentSubscriptionId').value = id;
+                openModal('subscriptionDetailsModal');
+            } catch (error) {
+                showAlert('error', 'Failed to load subscription details: ' + error.message);
+            }
+        }
+
+        function pauseSubscription() {
+            const id = document.getElementById('currentSubscriptionId').value;
+            if (confirm('Are you sure you want to pause this subscription?')) {
+                apiCall('POST', `/subscriptions/${id}/pause`)
+                    .then(() => {
+                        showAlert('success', 'Subscription paused');
+                        closeModal('subscriptionDetailsModal');
+                        loadSubscriptions();
+                    })
+                    .catch(error => showAlert('error', 'Failed to pause: ' + error.message));
+            }
+        }
+
+        function cancelSubscription() {
+            const id = document.getElementById('currentSubscriptionId').value;
+            if (confirm('Are you sure you want to cancel this subscription?')) {
+                apiCall('POST', `/subscriptions/${id}/cancel`, { reason: 'User requested cancellation' })
+                    .then(() => {
+                        showAlert('success', 'Subscription canceled');
+                        closeModal('subscriptionDetailsModal');
+                        loadSubscriptions();
+                    })
+                    .catch(error => showAlert('error', 'Failed to cancel: ' + error.message));
+            }
+        }
+
+        // Refunds
+        async function loadRefunds(page = 0) {
+            try {
+                const statusFilter = document.getElementById('refundStatusFilter')?.value || '';
+                const query = statusFilter ? `?status=${statusFilter}&page=${page}&size=10` : `?page=${page}&size=10`;
+                const data = await apiCall('GET', '/refunds' + query);
+
+                const tbody = document.getElementById('refundsBody');
+                tbody.innerHTML = '';
+
+                if (!data.content || data.content.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">No refunds found</td></tr>';
+                    document.getElementById('refundsPagination').innerHTML = '';
+                    return;
+                }
+
+                data.content.forEach(refund => {
+                    const row = document.createElement('tr');
+                    const fee = Math.round(refund.requestedAmount * 0.025);
+                    row.innerHTML = `
+                        <td>${refund.id}</td>
+                        <td>${refund.subscriptionId}</td>
+                        <td>${formatCurrency(refund.requestedAmount)}</td>
+                        <td><span class="status-badge ${getStatusClass(refund.status)}">${refund.status}</span></td>
+                        <td>${formatCurrency(fee)}</td>
+                        <td>${refund.approvedByUser || '-'}</td>
+                        <td>${formatDate(refund.createdAt)}</td>
+                        <td>
+                            ${refund.status === 'PENDING_APPROVAL' ? `<button class="btn btn-warning btn-small" onclick="openApproveModal(${refund.id}, ${refund.requestedAmount})">Review</button>` : '-'}
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Pagination
+                let paginationHtml = '';
+                for (let i = 0; i < data.totalPages; i++) {
+                    paginationHtml += `<button onclick="loadRefunds(${i})" class="${i === page ? 'active' : ''}">${i + 1}</button>`;
+                }
+                document.getElementById('refundsPagination').innerHTML = paginationHtml;
+                state.refundsPage = page;
+
+            } catch (error) {
+                showAlert('error', 'Failed to load refunds: ' + error.message);
+            }
+        }
+
+        function openRequestRefundModal() {
+            if (!state.permissions.includes('REQUEST_REFUNDS') && !state.permissions.includes('SYSTEM_ADMIN')) {
+                showAlert('error', 'You do not have permission to request refunds');
+                return;
+            }
+            // Load subscriptions for dropdown
+            apiCall('GET', '/subscriptions?size=100')
+                .then(data => {
+                    const select = document.getElementById('refundSubscriptionId');
+                    select.innerHTML = '<option value="">Select a subscription...</option>';
+                    (data.content || []).forEach(sub => {
+                        const option = document.createElement('option');
+                        option.value = sub.id;
+                        option.textContent = `${sub.customerEmail} - ${formatCurrency(sub.amountPaid || 0)}`;
+                        select.appendChild(option);
+                    });
+                    openModal('requestRefundModal');
+                })
+                .catch(error => showAlert('error', 'Failed to load subscriptions: ' + error.message));
+        }
+
+        document.getElementById('requestRefundForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const amountInDollars = parseFloat(document.getElementById('requestedAmount').value);
+                const amountInCents = Math.round(amountInDollars * 100);
+                await apiCall('POST', '/refunds/request', {
+                    subscriptionId: parseInt(document.getElementById('refundSubscriptionId').value),
+                    requestedAmount: amountInCents,
+                    reason: document.getElementById('refundReason').value || null
+                });
+                showAlert('success', 'Refund requested successfully');
+                closeModal('requestRefundModal');
+                loadRefunds();
+            } catch (error) {
+                showAlert('error', 'Failed to request refund: ' + error.message);
+            }
+        });
+
+        function openApproveModal(refundId, requestedAmount) {
+            if (!state.permissions.includes('APPROVE_REFUNDS') && !state.permissions.includes('SYSTEM_ADMIN')) {
+                showAlert('error', 'You do not have permission to approve refunds');
+                return;
+            }
+            document.getElementById('approveRefundId').value = refundId;
+            const fee = Math.round(requestedAmount * 0.025);
+            const net = requestedAmount - fee;
+            document.getElementById('approveRequestedAmount').value = formatCurrency(requestedAmount);
+            document.getElementById('approveFeeAmount').value = formatCurrency(fee);
+            document.getElementById('approveNetAmount').value = formatCurrency(net);
+            openModal('approveRefundModal');
+        }
+
+        document.getElementById('approveRefundForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const refundId = document.getElementById('approveRefundId').value;
+                await apiCall('POST', `/refunds/${refundId}/approve`, {
+                    notes: document.getElementById('approvalNotes').value || null
+                });
+                showAlert('success', 'Refund approved successfully');
+                closeModal('approveRefundModal');
+                loadRefunds();
+                loadAdminPanel();
+            } catch (error) {
+                showAlert('error', 'Failed to approve refund: ' + error.message);
+            }
+        });
+
+        function rejectRefund() {
+            const refundId = document.getElementById('approveRefundId').value;
+            const reason = prompt('Enter reason for rejection:');
+            if (reason !== null) {
+                apiCall('POST', `/refunds/${refundId}/reject`, { reason })
+                    .then(() => {
+                        showAlert('success', 'Refund rejected');
+                        closeModal('approveRefundModal');
+                        loadRefunds();
+                        loadAdminPanel();
+                    })
+                    .catch(error => showAlert('error', 'Failed to reject refund: ' + error.message));
+            }
+        }
+
+        // Admin Panel
+        async function loadAdminPanel() {
+            try {
+                const usersData = await apiCall('GET', '/auth/users');
+                const tbody = document.getElementById('usersBody');
+                tbody.innerHTML = '';
+
+                (usersData || []).forEach(user => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.email}</td>
+                        <td>${user.active ? '✓' : '✗'}</td>
+                        <td>${(user.permissions || []).slice(0, 2).join(', ')}${(user.permissions || []).length > 2 ? '...' : ''}</td>
+                        <td>${user.lastLogin ? formatDate(user.lastLogin) : 'Never'}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" onclick="editUser(${user.id})">Edit</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Load pending refunds
+                const refundsData = await apiCall('GET', '/refunds/pending-approvals?size=100');
+                const pendingBody = document.getElementById('pendingRefundsBody');
+                pendingBody.innerHTML = '';
+
+                (refundsData.content || []).forEach(refund => {
+                    const fee = Math.round(refund.requestedAmount * 0.025);
+                    const net = refund.requestedAmount - fee;
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${refund.id}</td>
+                        <td>${refund.subscriptionId}</td>
+                        <td>${formatCurrency(refund.requestedAmount)}</td>
+                        <td>${formatCurrency(fee)}</td>
+                        <td>${formatCurrency(net)}</td>
+                        <td>${refund.requestedByUser}</td>
+                        <td>
+                            <button class="btn btn-warning btn-small" onclick="openApproveModal(${refund.id}, ${refund.requestedAmount})">Review</button>
+                        </td>
+                    `;
+                    pendingBody.appendChild(row);
+                });
+
+                if (!refundsData.content || refundsData.content.length === 0) {
+                    pendingBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No pending approvals</td></tr>';
+                }
+            } catch (error) {
+                showAlert('error', 'Failed to load admin panel: ' + error.message);
+            }
+        }
+
+        function openCreateUserModal() {
+            if (!state.permissions.includes('MANAGE_USERS') && !state.permissions.includes('SYSTEM_ADMIN')) {
+                showAlert('error', 'You do not have permission to create users');
+                return;
+            }
+            // Load permissions
+            apiCall('GET', '/auth/permissions')
+                .then(data => {
+                    const permList = document.getElementById('permissionsList');
+                    permList.innerHTML = '';
+                    (data || []).forEach(perm => {
+                        const permCode = perm.code || perm;
+                        const permName = perm.name || perm;
+                        const permDesc = perm.description || '';
+                        permList.innerHTML += `
+                            <div class="permission-item" style="margin-bottom: 10px; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+                                <input type="checkbox" id="perm_${permCode}" value="${permCode}">
+                                <label for="perm_${permCode}" style="margin-left: 8px; font-weight: 500; cursor: pointer;">${permName}</label>
+                                ${permDesc ? `<small style="display: block; margin-left: 24px; color: #7f8c8d; margin-top: 2px;">${permDesc}</small>` : ''}
+                            </div>
+                        `;
+                    });
+                    openModal('createUserModal');
+                })
+                .catch(error => showAlert('error', 'Failed to load permissions: ' + error.message));
+        }
+
+        document.getElementById('createUserForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const permissions = Array.from(document.querySelectorAll('#permissionsList input:checked')).map(c => c.value);
+            try {
+                await apiCall('POST', '/auth/users', {
+                    username: document.getElementById('newUsername').value,
+                    email: document.getElementById('newEmail').value,
+                    password: document.getElementById('newPassword').value,
+                    fullName: document.getElementById('newFullName').value || '',
+                    permissions: permissions
+                });
+                showAlert('success', 'User created successfully');
+                closeModal('createUserModal');
+                document.getElementById('createUserForm').reset();
+                loadAdminPanel();
+            } catch (error) {
+                showAlert('error', 'Failed to create user: ' + error.message);
+            }
+        });
+
+        function editUser(userId) {
+            showAlert('info', 'Edit user feature coming soon');
+        }
+
+        // Initialize hidden element
+        const detailsDiv = document.createElement('input');
+        detailsDiv.type = 'hidden';
+        detailsDiv.id = 'currentSubscriptionId';
+        document.body.appendChild(detailsDiv);
+
+        // Sidebar navigation
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const page = item.dataset.page;
+                goToPage(page);
+            });
+        });
+
+        // Handle filter changes
+        document.getElementById('statusFilter')?.addEventListener('change', () => loadSubscriptions(0));
+        document.getElementById('refundStatusFilter')?.addEventListener('change', () => loadRefunds(0));
+
+        // Sync from Square
+        async function syncFromSquare() {
+            try {
+                showAlert('info', 'Syncing subscriptions from Square...');
+                const res = await apiCall('POST', '/subscriptions/sync-from-square');
+                showAlert('success', `Synced from Square. Created: ${res.created}, Updated: ${res.updated}, Failures: ${res.failures}`);
+                loadSubscriptions();
+            } catch (err) {
+                console.error('Sync from Square failed', err);
+                showAlert('error', 'Sync from Square failed: ' + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

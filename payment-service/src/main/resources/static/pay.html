@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Payment</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; background: #f8f8f8; padding: 2em; }
+    .container { max-width: 420px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #ccc; }
+    label { display: block; margin-top: 1em; }
+    input[type="number"], input[type="email"] { width: 100%; padding: 0.5em; margin-top: 0.5em; }
+    #card-container { margin-top: 0.75em; border: 1px solid #ccc; border-radius: 4px; padding: 0.75em; }
+    #card-errors { color: #c00; margin-top: 0.5em; min-height: 1.25em; }
+    button { margin-top: 1.5em; padding: 0.7em 2em; background: #c9b037; color: #fff; border: none; border-radius: 4px; font-size: 1em; cursor: pointer; }
+    button[disabled] { background: #999; cursor: not-allowed; }
+    .info { margin-top: 1em; color: #555; }
+    .error { color: #c00; margin-top: 1em; }
+    .status { margin-top: 1em; min-height: 1.5em; }
+    .status.error { color: #c00; }
+    .status.success { color: #0a7a3c; }
+    .method-toggle { display: flex; gap: 1em; flex-wrap: wrap; margin-top: 1.25em; }
+    .method-toggle label { display: flex; align-items: center; gap: 0.4em; font-weight: 600; cursor: pointer; }
+    .section { margin-top: 1.25em; }
+    #ach-section { display: none; }
+    .field-row { display: flex; flex-wrap: wrap; gap: 1em; }
+    .field-row label { flex: 1 1 150px; }
+    .ach-note { background: #eef5ff; border: 1px solid #cbe0ff; border-radius: 4px; padding: 0.75em; color: #1f3b64; font-size: 0.95em; margin-top: 0.75em; }
+  </style>
+  <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      let sqPayments;
+      let sqCard;
+      let sqAch;
+      let achSupported = false;
+
+      function getStudentId() {
+        const match = window.location.pathname.match(/\/pay\/(\w+)/);
+        return match ? match[1] : '';
+      }
+
+      function getDue() {
+        const parts = window.location.pathname.split('/');
+        let due = null;
+        if (parts.length >= 4 && parts[3]) {
+          const parsed = parseFloat(parts[3]);
+          if (!Number.isNaN(parsed) && parsed > 0) due = parsed;
+        }
+        if (due == null) {
+          const qp = new URLSearchParams(window.location.search).get('due');
+          if (qp) {
+            const parsedQ = parseFloat(qp);
+            if (!Number.isNaN(parsedQ) && parsedQ > 0) due = parsedQ;
+          }
+        }
+        return due;
+      }
+
+      function getEmail() {
+        const qp = new URLSearchParams(window.location.search).get('email');
+        return qp ? qp.trim() : '';
+      }
+
+      function setStatus(message, type) {
+        const statusEl = document.getElementById('status');
+        if (!statusEl) return;
+        statusEl.textContent = message || '';
+        statusEl.className = 'status' + (type ? ' ' + type : '');
+      }
+
+      function currentPaymentMethod() {
+        const selected = document.querySelector('input[name="paymentMethod"]:checked');
+        if (!selected) return 'CARD';
+        if (selected.value === 'ACH' && !achSupported) {
+          const cardRadio = document.getElementById('methodCard');
+          if (cardRadio && !cardRadio.checked) {
+            cardRadio.checked = true;
+          }
+          return 'CARD';
+        }
+        return selected.value;
+      }
+
+      function updateFee() {
+        const amountInput = document.getElementById('amount');
+        if (!amountInput) return;
+        const amount = parseFloat(amountInput.value) || 0;
+        const method = currentPaymentMethod();
+        const cardFeeInfo = document.getElementById('cardFeeInfo');
+        const achInfo = document.getElementById('achInfo');
+        const feeEl = document.getElementById('fee');
+        const totalEl = document.getElementById('total');
+        if (method === 'ACH') {
+          if (cardFeeInfo) cardFeeInfo.style.display = 'none';
+          if (achInfo) achInfo.style.display = 'block';
+          if (feeEl) feeEl.textContent = '0.00';
+          if (totalEl) totalEl.textContent = amount.toFixed(2);
+        } else {
+          const rate = 0.029;
+          const fixedFee = 0.30;
+          const total = amount ? Math.round(((amount + fixedFee) / (1 - rate)) * 100) / 100 : 0;
+          if (feeEl) feeEl.textContent = (total - amount).toFixed(2);
+          if (totalEl) totalEl.textContent = total.toFixed(2);
+          if (cardFeeInfo) cardFeeInfo.style.display = 'block';
+          if (achInfo) achInfo.style.display = 'none';
+        }
+      }
+
+      function toggleMethodUI() {
+        const method = currentPaymentMethod();
+        const cardSection = document.getElementById('card-section');
+        const achSection = document.getElementById('ach-section');
+        const submitBtn = document.getElementById('submitBtn');
+        if (cardSection) cardSection.style.display = method === 'CARD' ? 'block' : 'none';
+        if (achSection) achSection.style.display = method === 'ACH' ? 'block' : 'none';
+        if (submitBtn) submitBtn.textContent = method === 'CARD' ? 'Pay with Card' : 'Pay with Bank Account';
+        updateFee();
+      }
+
+      function achTransactionKey(studentId) {
+        return 'sq-ach-txn-' + studentId;
+      }
+
+      function ensureAchTransactionId(studentId) {
+        const key = achTransactionKey(studentId);
+        let existing = null;
+        try {
+          existing = window.sessionStorage.getItem(key);
+        } catch (err) {
+          existing = null;
+        }
+        if (!existing) {
+          const generated = (window.crypto && window.crypto.randomUUID)
+            ? window.crypto.randomUUID()
+            : 'ach-' + Math.random().toString(36).slice(2);
+          try {
+            window.sessionStorage.setItem(key, generated);
+          } catch (err) {
+            // ignore storage errors (private browsing, etc.)
+          }
+          existing = generated;
+        }
+        return existing;
+      }
+
+      function baseRedirectUri() {
+        const url = new URL(window.location.href);
+        return url.origin + url.pathname;
+      }
+
+      function applyAchAvailability(enabled) {
+        achSupported = !!enabled;
+        const achOption = document.getElementById('achOption');
+        const achRadio = document.getElementById('methodAch');
+        const cardRadio = document.getElementById('methodCard');
+        const achInfo = document.getElementById('achInfo');
+        const achNote = document.getElementById('achNote');
+        if (!achSupported) {
+          if (achOption) achOption.style.display = 'none';
+          if (achRadio) {
+            achRadio.checked = false;
+            achRadio.disabled = true;
+          }
+          if (cardRadio && !cardRadio.checked) {
+            cardRadio.checked = true;
+          }
+          if (achInfo) achInfo.style.display = 'none';
+          if (achNote) achNote.textContent = 'Bank payments are unavailable for this merchant.';
+        } else {
+          if (achOption) achOption.style.display = '';
+          if (achRadio) achRadio.disabled = true; // enable after ACH SDK loads
+          if (achNote) achNote.textContent = 'Bank payments are verified through Plaid. You must use a US checking account.';
+        }
+        toggleMethodUI();
+      }
+
+      async function initializeSquare(studentId, submitBtn, achRadio) {
+        try {
+          const res = await fetch('/api/payments/config');
+          if (!res.ok) throw new Error('Failed to load Square configuration');
+          const cfg = await res.json();
+          applyAchAvailability(cfg.achEnabled);
+          if (!window.Square) throw new Error('Square SDK unavailable');
+          sqPayments = window.Square.payments(cfg.applicationId, cfg.locationId);
+          sqCard = await sqPayments.card();
+          await sqCard.attach('#card-container');
+          if (submitBtn) submitBtn.disabled = false;
+
+          if (achSupported && achRadio) {
+            try {
+              const transactionId = ensureAchTransactionId(studentId);
+              sqAch = await sqPayments.ach({
+                redirectURI: baseRedirectUri(),
+                transactionId
+              });
+              achRadio.disabled = false;
+            } catch (achErr) {
+              console.info('ACH init unavailable', achErr);
+              achRadio.disabled = true;
+              const achNote = document.getElementById('achNote');
+              if (achNote) {
+                achNote.textContent = 'Bank payments are unavailable right now. Please use a card payment.';
+              }
+              if (submitBtn) submitBtn.textContent = 'Pay with Card';
+            }
+          }
+        } catch (err) {
+          console.error('Square init error', err);
+          setStatus('Payment form could not load. Please refresh or contact support.', 'error');
+          if (submitBtn) submitBtn.disabled = true;
+        }
+      }
+
+      async function tokenizeCard() {
+        const result = await sqCard.tokenize();
+        const errorEl = document.getElementById('card-errors');
+        if (result.status === 'OK') {
+          if (errorEl) errorEl.textContent = '';
+          return { token: result.token, verificationToken: result.verificationToken || null };
+        }
+        const errors = (result.errors || []).map(e => e.message).join(', ');
+        if (errorEl) errorEl.textContent = errors || 'Unable to tokenize card';
+        throw new Error(errors || 'Unable to tokenize card');
+      }
+
+      async function tokenizeAch(amount) {
+        if (!sqAch) {
+          throw new Error('Bank payments are unavailable on this device.');
+        }
+        const first = (document.getElementById('achFirstName').value || '').trim();
+        const last = (document.getElementById('achLastName').value || '').trim();
+        if (!first || !last) {
+          throw new Error('Enter the account holder\'s first and last name for bank payments.');
+        }
+        const name = (first + ' ' + last).trim();
+        const result = await sqAch.tokenize({
+          accountHolderName: name,
+          intent: 'CHARGE',
+          amount: amount.toFixed(2),
+          currency: 'USD'
+        });
+        if (result.status === 'OK') {
+          return { token: result.token, accountHolderName: name };
+        }
+        const errors = (result.errors || []).map(e => e.message).join(', ');
+        throw new Error(errors || 'Unable to verify bank account.');
+      }
+
+      window.addEventListener('load', () => {
+        const studentId = getStudentId();
+        const formEl = document.getElementById('pay-form');
+        const submitBtn = document.getElementById('submitBtn');
+        const achRadio = document.getElementById('methodAch');
+        const methodRadios = document.querySelectorAll('input[name="paymentMethod"]');
+
+        if (!studentId) {
+          if (formEl) formEl.style.display = 'none';
+          const errEl = document.getElementById('error-message');
+          if (errEl) errEl.style.display = 'block';
+          return;
+        }
+
+        document.getElementById('studentId').value = studentId;
+        document.getElementById('studentIdLegacy').value = studentId;
+
+        const due = getDue();
+        if (due != null) {
+          const amountDue = document.getElementById('amountDue');
+          const amountDueRow = document.getElementById('amountDueRow');
+          if (amountDue) amountDue.textContent = due.toFixed(2);
+          if (amountDueRow) amountDueRow.style.display = 'block';
+        }
+
+        const email = getEmail();
+        if (email) {
+          const emailField = document.getElementById('payerEmail');
+          if (emailField) emailField.value = email;
+        }
+
+        const amountInput = document.getElementById('amount');
+        if (amountInput) amountInput.addEventListener('input', updateFee);
+        methodRadios.forEach(radio => radio.addEventListener('change', toggleMethodUI));
+
+        toggleMethodUI();
+
+        async function submitPayment(evt) {
+          if (evt) {
+            evt.preventDefault();
+          }
+
+          const amount = parseFloat(document.getElementById('amount').value);
+          const method = currentPaymentMethod();
+
+          if (!amount || amount <= 0) {
+            setStatus('Enter a valid amount greater than zero.', 'error');
+            return;
+          }
+
+          if (method === 'CARD' && !sqCard) {
+            setStatus('Payment form not ready yet. Please wait a moment.', 'error');
+            return;
+          }
+
+          if (method === 'ACH' && (!achSupported || (achRadio && achRadio.disabled) || !sqAch)) {
+            setStatus('Bank payments are unavailable right now. Please choose card.', 'error');
+            return;
+          }
+
+          setStatus('Processing payment...', null);
+          if (submitBtn) submitBtn.disabled = true;
+
+          try {
+            let tokenInfo;
+            let verificationToken = null;
+            let accountHolderName = null;
+
+            if (method === 'CARD') {
+              tokenInfo = await tokenizeCard();
+              verificationToken = tokenInfo.verificationToken;
+            } else {
+              tokenInfo = await tokenizeAch(amount);
+              accountHolderName = tokenInfo.accountHolderName;
+            }
+
+            const payload = {
+              amount: amount.toFixed(2),
+              studentId,
+              sourceId: tokenInfo.token,
+              paymentMethod: method
+            };
+
+            if (verificationToken) {
+              payload.verificationToken = verificationToken;
+            }
+            if (accountHolderName) {
+              payload.accountHolderName = accountHolderName;
+            }
+
+            const emailField = document.getElementById('payerEmail');
+            if (emailField && emailField.value.trim()) {
+              payload.email = emailField.value.trim();
+            }
+
+            const resp = await fetch('/api/payments/charge', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (!resp.ok) {
+              const errBody = await resp.json().catch(() => ({}));
+              throw new Error(errBody.message || 'Charge failed');
+            }
+
+            const data = await resp.json();
+
+            if (method === 'ACH') {
+              setStatus('Bank payment authorized! Funds move in 1-2 business days. Watch for a receipt email when it completes.', 'success');
+              if (data.receiptUrl) {
+                document.getElementById('achInfo').innerHTML = 'You can check the pending receipt anytime: <a href="' + data.receiptUrl + '" target="_blank" rel="noreferrer">open receipt</a>.';
+                document.getElementById('achInfo').style.display = 'block';
+              }
+            } else {
+              setStatus('Payment successful! Redirecting to receipt...', 'success');
+              if (data.receiptUrl) {
+                window.setTimeout(() => { window.location.href = data.receiptUrl; }, 1200);
+              }
+            }
+          } catch (err) {
+            console.error('Payment error', err);
+            setStatus(err.message || 'Payment failed. Please verify details and try again.', 'error');
+            if (submitBtn) submitBtn.disabled = false;
+            return;
+          }
+        }
+
+        if (submitBtn) submitBtn.addEventListener('click', submitPayment);
+        if (formEl) formEl.addEventListener('submit', submitPayment);
+        if (formEl) {
+          formEl.addEventListener('keydown', function(evt) {
+            if (evt.key === 'Enter') {
+              evt.preventDefault();
+              submitPayment();
+            }
+          });
+        }
+
+        updateFee();
+        initializeSquare(studentId, submitBtn, achRadio);
+      });
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Student Payment</h1>
+    <div id="error-message" class="error" style="display:none;">
+      <strong>Error:</strong> No student ID found in the link.<br>
+      You must pay through the <b>Band Camp Registration App</b> to ensure your payment is correctly applied.<br>
+      <a href="/">Return to Home</a>
+    </div>
+    <div id="amountDueRow" class="info" style="display:none;">
+      Amount Due: $<span id="amountDue">0.00</span>
+    </div>
+    <form id="pay-form" method="POST" action="/pay">
+      <input type="hidden" id="studentId" name="studentIdParam" />
+      <input type="hidden" id="studentIdLegacy" name="studentId" />
+      <label>Amount to Pay ($):
+        <input type="number" id="amount" name="amount" min="1" max="10000" step="0.01" required />
+      </label>
+      <label>Email (optional, for receipt):
+        <input type="email" id="payerEmail" name="email" placeholder="you@example.com" />
+      </label>
+      <div class="method-toggle" id="methodToggle">
+        <label><input type="radio" name="paymentMethod" value="CARD" id="methodCard" checked> Card</label>
+        <label id="achOption"><input type="radio" name="paymentMethod" value="ACH" id="methodAch" disabled> Bank Account (ACH)</label>
+      </div>
+      <div class="section" id="card-section">
+        <label>Card Details:</label>
+        <div id="card-container"></div>
+        <div id="card-errors"></div>
+      </div>
+      <div class="section" id="ach-section">
+        <div class="field-row">
+          <label>Account Holder First Name:
+            <input type="text" id="achFirstName" autocomplete="given-name" />
+          </label>
+          <label>Account Holder Last Name:
+            <input type="text" id="achLastName" autocomplete="family-name" />
+          </label>
+        </div>
+        <div class="ach-note" id="achNote">
+          Bank payments are verified through Plaid. You must use a US checking account.
+        </div>
+      </div>
+      <div class="info" id="cardFeeInfo">
+        Estimated Square Fee: $<span id="fee">0.00</span><br>
+        Total Charged: $<span id="total">0.00</span>
+      </div>
+      <div class="info" id="achInfo" style="display:none;">
+        Bank transfers settle in 1-2 business days with no card surcharge.
+      </div>
+      <button type="button" id="submitBtn" disabled>Pay with Card</button>
+      <div id="status" class="status"></div>
+    </form>
+  </div>
+</body>
+</html>
