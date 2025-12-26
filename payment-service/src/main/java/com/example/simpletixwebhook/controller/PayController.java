@@ -26,4 +26,10 @@ public class PayController {
     public String subscriptionManager() {
         return "forward:/subscription-manager.html";
     }
+
+    // Admin Routes - Clean URLs
+    @GetMapping({"/admin", "/admin/", "/admin/plans"})
+    public String adminPlans() {
+        return "forward:/admin/plans.html";
+    }
 }

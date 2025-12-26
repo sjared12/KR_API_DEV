@@ -352,15 +352,16 @@ grep "payment plan" application.log
 **Public endpoints:**
 - `/pay`, `/pay.html`, `/charge`, `/api/payments/charge` and all static assets are public (no authentication required)
 
-**Admin endpoints:**
-- `/api/plans`, `/api/plans/{id}`, `/api/plans/{id}/complete`, `/api/plans/{id}/cancel` require HTTP Basic Auth (set `APP_ADMIN_USER` and `APP_ADMIN_PASS`)
-
+ | `SPRING_DATASOURCE_URL` | JDBC URL for the primary database (e.g. `jdbc:postgresql://payment-db:5432/payment_db` or managed DB host) |
+ | `SPRING_DATASOURCE_USERNAME` | Database user (e.g. `payment_user`) |
+ | `SPRING_DATASOURCE_PASSWORD` | Database password (ensure it is set; missing value causes startup failure) |
+ | `SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT` | Hibernate dialect (e.g. `org.hibernate.dialect.PostgreSQLDialect`) |
 **Webhooks:**
 - Webhook controller validates Square signatures using the configured secret.
 
-## Deployment Notes
+| `SQUARE_API_TOKEN` | Square access token (sandbox or production) |
 1. Configure the environment variables listed above wherever you deploy (DigitalOcean, Heroku, etc.).
-2. Ensure ingress exposes the webhook endpoint at the URL registered with Square.
+| `SQUARE_APPLICATION_ID` | Square Web Payments SDK application ID |
 3. Schedule database backups for the payment plan repository.
 4. Monitor logs for Square webhook failures or invoice creation errors.
 
@@ -375,6 +376,18 @@ This module was extracted from the monolithic `KR_API`. When migrating:
 - Replace manual HTTP clients with Square SDK and WebClient.
 - Add comprehensive integration tests using MockWebServer or WireMock.
 - Containerize with Docker for independent deployment.
+square.api.token=${SQUARE_API_TOKEN}
+square.location.id=${SQUARE_LOCATION_ID}
+square.application.id=${SQUARE_APPLICATION_ID:}
+square.webhook.signature.key=${SQUARE_WEBHOOK_SIGNATURE_KEY}
+square.webhook.notification.url=${SQUARE_WEBHOOK_NOTIFICATION_URL:}
 
----
-Questions or issues? Open an issue in this repository or contact the KR tech team.
+# JPA
+spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+spring.jpa.properties.hibernate.dialect=${SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:org.hibernate.dialect.PostgreSQLDialect}
+
+### DigitalOcean App Platform Notes
+- Set env vars on the payment-service component: `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`, `SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT`, and Square vars.
+- Verify the DB user/password matches your PostgreSQL instance. A missing `SPRING_DATASOURCE_PASSWORD` results in: “The server requested password-based authentication, but no password was provided”.
+- If using the internal Postgres container (compose), use host `payment-db` and port `5432`. For Managed Databases, use the DO-provided hostname, port, db name, user, and password.
+- After updating env vars, redeploy the app.

@@ -5,26 +5,252 @@
   <title>Student Payment</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: sans-serif; background: #f8f8f8; padding: 2em; }
-    .container { max-width: 420px; margin: auto; background: #fff; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #ccc; }
-    label { display: block; margin-top: 1em; }
-    input[type="number"], input[type="email"] { width: 100%; padding: 0.5em; margin-top: 0.5em; }
-    #card-container { margin-top: 0.75em; border: 1px solid #ccc; border-radius: 4px; padding: 0.75em; }
-    #card-errors { color: #c00; margin-top: 0.5em; min-height: 1.25em; }
-    button { margin-top: 1.5em; padding: 0.7em 2em; background: #c9b037; color: #fff; border: none; border-radius: 4px; font-size: 1em; cursor: pointer; }
-    button[disabled] { background: #999; cursor: not-allowed; }
-    .info { margin-top: 1em; color: #555; }
-    .error { color: #c00; margin-top: 1em; }
-    .status { margin-top: 1em; min-height: 1.5em; }
-    .status.error { color: #c00; }
-    .status.success { color: #0a7a3c; }
-    .method-toggle { display: flex; gap: 1em; flex-wrap: wrap; margin-top: 1.25em; }
-    .method-toggle label { display: flex; align-items: center; gap: 0.4em; font-weight: 600; cursor: pointer; }
-    .section { margin-top: 1.25em; }
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --border: #475569;
+      --shadow: rgba(0, 0, 0, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px var(--shadow);
+      border: 1px solid var(--border);
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="number"],
+    input[type="email"],
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-primary);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      margin-top: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    input[type="number"]:focus,
+    input[type="email"]:focus,
+    input[type="text"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    #card-container {
+      margin-top: 0.75rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      background: var(--bg-primary);
+    }
+
+    #card-errors {
+      color: var(--danger);
+      margin-top: 0.75rem;
+      min-height: 1.25rem;
+      font-size: 0.875rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.75rem 1.5rem;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 1.5rem;
+    }
+
+    button:hover:not([disabled]) {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px var(--shadow);
+    }
+
+    button:active:not([disabled]) {
+      transform: translateY(0);
+    }
+
+    button[disabled] {
+      background: var(--bg-tertiary);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .info {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(16, 185, 129, 0.1);
+      border-left: 4px solid var(--success);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .error {
+      color: var(--danger);
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid var(--danger);
+      border-radius: 6px;
+    }
+
+    .status {
+      margin-top: 1rem;
+      min-height: 1.5rem;
+      padding: 1rem;
+      border-radius: 6px;
+    }
+
+    .status.error {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid var(--danger);
+    }
+
+    .status.success {
+      color: var(--success);
+      background: rgba(16, 185, 129, 0.1);
+      border-left: 4px solid var(--success);
+    }
+
+    .method-toggle {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .method-toggle label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .method-toggle input[type="radio"] {
+      width: auto;
+      margin: 0;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+
+    .section {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
     #ach-section { display: none; }
-    .field-row { display: flex; flex-wrap: wrap; gap: 1em; }
-    .field-row label { flex: 1 1 150px; }
-    .ach-note { background: #eef5ff; border: 1px solid #cbe0ff; border-radius: 4px; padding: 0.75em; color: #1f3b64; font-size: 0.95em; margin-top: 0.75em; }
+
+    .field-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .field-row label {
+      flex: 1 1 200px;
+    }
+
+    .ach-note {
+      background: rgba(79, 70, 229, 0.1);
+      border-left: 4px solid var(--primary);
+      border-radius: 6px;
+      padding: 1rem;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      margin-top: 1rem;
+    }
+
+    #error-message {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    #error-message a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    #error-message a:hover {
+      text-decoration: underline;
+    }
   </style>
   <script src="https://sandbox.web.squarecdn.com/v1/square.js"></script>
   <script>
@@ -178,8 +404,14 @@
 
       async function initializeSquare(studentId, submitBtn, achRadio) {
         try {
-          const res = await fetch('/api/payments/config');
-          if (!res.ok) throw new Error('Failed to load Square configuration');
+          let res = await fetch('/payments/api/payments/config');
+          if (!res.ok) {
+            // Fallback when /api is not routed: try /payment/api
+            try {
+              res = await fetch('/payments/payment/api/payments/config');
+            } catch (_) {}
+          }
+          if (!res || !res.ok) throw new Error('Failed to load Square configuration');
           const cfg = await res.json();
           applyAchAvailability(cfg.achEnabled);
           if (!window.Square) throw new Error('Square SDK unavailable');
@@ -343,11 +575,21 @@
               payload.email = emailField.value.trim();
             }
 
-            const resp = await fetch('/api/payments/charge', {
+            let resp = await fetch('/payments/api/payments/charge', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload)
             });
+            if (!resp.ok) {
+              // Fallback when /api is not routed: try /payment/api
+              try {
+                resp = await fetch('/payments/payment/api/payments/charge', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(payload)
+                });
+              } catch (_) {}
+            }
 
             if (!resp.ok) {
               const errBody = await resp.json().catch(() => ({}));
@@ -395,56 +637,81 @@
 </head>
 <body>
   <div class="container">
-    <h1>Student Payment</h1>
-    <div id="error-message" class="error" style="display:none;">
-      <strong>Error:</strong> No student ID found in the link.<br>
-      You must pay through the <b>Band Camp Registration App</b> to ensure your payment is correctly applied.<br>
-      <a href="/">Return to Home</a>
+    <header>
+      <h1>Student Payment</h1>
+      <p class="subtitle">Secure payment form powered by Square</p>
+    </header>
+
+    <div id="error-message" style="display:none;">
+      <div class="card">
+        <div class="error">
+          <strong>Error:</strong> No student ID found in the link.<br><br>
+          You must pay through the <b>Band Camp Registration App</b> to ensure your payment is correctly applied.<br><br>
+          <a href="/" style="color: var(--primary); text-decoration: none; font-weight: 600;">← Return to Home</a>
+        </div>
+      </div>
     </div>
-    <div id="amountDueRow" class="info" style="display:none;">
-      Amount Due: $<span id="amountDue">0.00</span>
+
+    <div id="amountDueRow" style="display:none;">
+      <div class="card">
+        <div class="info">
+          <strong>Amount Due: $<span id="amountDue">0.00</span></strong>
+        </div>
+      </div>
     </div>
-    <form id="pay-form" method="POST" action="/pay">
-      <input type="hidden" id="studentId" name="studentIdParam" />
-      <input type="hidden" id="studentIdLegacy" name="studentId" />
-      <label>Amount to Pay ($):
+
+    <div class="card">
+      <form id="pay-form" method="POST" action="/pay">
+        <input type="hidden" id="studentId" name="studentIdParam" />
+        <input type="hidden" id="studentIdLegacy" name="studentId" />
+
+        <label for="amount">Amount to Pay ($) *</label>
         <input type="number" id="amount" name="amount" min="1" max="10000" step="0.01" required />
-      </label>
-      <label>Email (optional, for receipt):
+
+        <label for="payerEmail" style="margin-top: 1.5rem;">Email (optional, for receipt)</label>
         <input type="email" id="payerEmail" name="email" placeholder="you@example.com" />
-      </label>
-      <div class="method-toggle" id="methodToggle">
-        <label><input type="radio" name="paymentMethod" value="CARD" id="methodCard" checked> Card</label>
-        <label id="achOption"><input type="radio" name="paymentMethod" value="ACH" id="methodAch" disabled> Bank Account (ACH)</label>
-      </div>
-      <div class="section" id="card-section">
-        <label>Card Details:</label>
-        <div id="card-container"></div>
-        <div id="card-errors"></div>
-      </div>
-      <div class="section" id="ach-section">
-        <div class="field-row">
-          <label>Account Holder First Name:
-            <input type="text" id="achFirstName" autocomplete="given-name" />
-          </label>
-          <label>Account Holder Last Name:
-            <input type="text" id="achLastName" autocomplete="family-name" />
-          </label>
+
+        <div class="method-toggle" id="methodToggle">
+          <label><input type="radio" name="paymentMethod" value="CARD" id="methodCard" checked> Card</label>
+          <label id="achOption"><input type="radio" name="paymentMethod" value="ACH" id="methodAch" disabled> Bank Account (ACH)</label>
         </div>
-        <div class="ach-note" id="achNote">
-          Bank payments are verified through Plaid. You must use a US checking account.
+
+        <div class="section" id="card-section">
+          <label>Card Details:</label>
+          <div id="card-container"></div>
+          <div id="card-errors"></div>
         </div>
-      </div>
-      <div class="info" id="cardFeeInfo">
-        Estimated Square Fee: $<span id="fee">0.00</span><br>
-        Total Charged: $<span id="total">0.00</span>
-      </div>
-      <div class="info" id="achInfo" style="display:none;">
-        Bank transfers settle in 1-2 business days with no card surcharge.
-      </div>
-      <button type="button" id="submitBtn" disabled>Pay with Card</button>
-      <div id="status" class="status"></div>
-    </form>
+
+        <div class="section" id="ach-section">
+          <label style="margin-bottom: 1rem;">Account Holder Information</label>
+          <div class="field-row">
+            <div>
+              <label for="achFirstName">First Name *</label>
+              <input type="text" id="achFirstName" autocomplete="given-name" />
+            </div>
+            <div>
+              <label for="achLastName">Last Name *</label>
+              <input type="text" id="achLastName" autocomplete="family-name" />
+            </div>
+          </div>
+          <div class="ach-note" id="achNote">
+            Bank payments are verified through Plaid. You must use a US checking account.
+          </div>
+        </div>
+
+        <div class="info" id="cardFeeInfo">
+          <strong>Estimated Fee:</strong> $<span id="fee">0.00</span><br>
+          <strong>Total Charged:</strong> $<span id="total">0.00</span>
+        </div>
+
+        <div class="info" id="achInfo" style="display:none;">
+          Bank transfers settle in 1-2 business days with no card surcharge.
+        </div>
+
+        <button type="button" id="submitBtn" disabled>Pay with Card</button>
+        <div id="status" class="status"></div>
+      </form>
+    </div>
   </div>
 </body>
 </html>

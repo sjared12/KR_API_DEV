@@ -90,16 +90,18 @@ public class SquareInvoiceService {
                 " }" +
                 "}";
         String createUrl = apiBase() + "/v2/invoices";
-        HttpURLConnection conn = (HttpURLConnection) URI.create(createUrl).toURL().openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Bearer " + apiToken);
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Square-Version", "2025-10-16");
-        conn.setDoOutput(true);
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(body.getBytes(StandardCharsets.UTF_8));
-        }
-        int code = conn.getResponseCode();
+        HttpURLConnection conn = null;
+        try {
+            conn = (HttpURLConnection) URI.create(createUrl).toURL().openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + apiToken);
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Square-Version", "2025-10-16");
+            conn.setDoOutput(true);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body.getBytes(StandardCharsets.UTF_8));
+            }
+            int code = conn.getResponseCode();
         if (code != 200 && code != 201) {
             InputStream es = conn.getErrorStream();
             String err = es != null ? new String(es.readAllBytes(), StandardCharsets.UTF_8) : "";
@@ -198,6 +200,9 @@ public class SquareInvoiceService {
             url = extract(pResp, "\"public_url\":\"");
         }
         return new InvoiceResult(invoiceId, url);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     public enum Cadence { WEEKLY, BIWEEKLY, MONTHLY }
@@ -206,20 +211,22 @@ public class SquareInvoiceService {
         // Search for existing customer by email
         String searchUrl = apiBase() + "/v2/customers/search";
         String searchBody = "{\"query\":{\"filter\":{\"email_address\":{\"exact\":\"" + email + "\"}}}}";
-        HttpURLConnection conn = (HttpURLConnection) URI.create(searchUrl).toURL().openConnection();
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Bearer " + apiToken);
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Square-Version", "2025-10-16");
-        conn.setDoOutput(true);
-        try (OutputStream os = conn.getOutputStream()) {
+        HttpURLConnection searchConn = null;
+        try {
+        searchConn = (HttpURLConnection) URI.create(searchUrl).toURL().openConnection();
+        searchConn.setRequestMethod("POST");
+        searchConn.setRequestProperty("Authorization", "Bearer " + apiToken);
+        searchConn.setRequestProperty("Content-Type", "application/json");
+        searchConn.setRequestProperty("Square-Version", "2025-10-16");
+        searchConn.setDoOutput(true);
+        try (OutputStream os = searchConn.getOutputStream()) {
             os.write(searchBody.getBytes(StandardCharsets.UTF_8));
         }
         
-        int code = conn.getResponseCode();
+        int code = searchConn.getResponseCode();
         String resp;
         if (code == 200) {
-            try (InputStream is = conn.getInputStream()) {
+            try (InputStream is = searchConn.getInputStream()) {
                 resp = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             }
             // Try extracting from customers array first (search response wraps in array)
@@ -232,13 +239,19 @@ public class SquareInvoiceService {
                 return existingId;
             }
         }
+        } finally {
+            if (searchConn != null) searchConn.disconnect();
+        }
         
         // Create new customer
+        HttpURLConnection createConn = null;
+        String resp;
+        try {
         String createUrl = apiBase() + "/v2/customers";
         String createBody = "{\"email_address\":\"" + email + "\"," +
                 "\"reference_id\":\"student-" + studentId + "\"," +
                 "\"note\":\"Student ID: " + studentId + "\"}";
-        HttpURLConnection createConn = (HttpURLConnection) URI.create(createUrl).toURL().openConnection();
+        createConn = (HttpURLConnection) URI.create(createUrl).toURL().openConnection();
         createConn.setRequestMethod("POST");
         createConn.setRequestProperty("Authorization", "Bearer " + apiToken);
         createConn.setRequestProperty("Content-Type", "application/json");
@@ -268,6 +281,9 @@ public class SquareInvoiceService {
             throw new RuntimeException("Failed to extract customer ID from response: " + resp);
         }
         return customerId;
+        } finally {
+            if (createConn != null) createConn.disconnect();
+        }
     }
     
     private String createOrder(String studentId, BigDecimal totalDue) throws Exception {
