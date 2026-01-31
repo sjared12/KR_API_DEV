@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Payment Portal</title>
+    <link rel="icon" type="image/svg+xml" href="/payments/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f5f7fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+        .sidebar {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            height: fit-content;
+        }
+        .sidebar a {
+            display: block;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background-color: #667eea;
+            color: white;
+        }
+        .main-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .page-header {
+            margin-bottom: 2rem;
+        }
+        .page-header h1 {
+            color: #333;
+            font-weight: 600;
+        }
+        .search-box {
+            margin-bottom: 1.5rem;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        .table {
+            margin-bottom: 0;
+        }
+        .table thead {
+            background-color: #f8f9fa;
+            border-top: 2px solid #667eea;
+            border-bottom: 2px solid #667eea;
+        }
+        .table thead th {
+            color: #667eea;
+            font-weight: 600;
+            border: none;
+            padding: 1rem;
+        }
+        .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .table tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-cancelled {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .btn-refund {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        .btn-refund:hover {
+            background-color: #c82333;
+            color: white;
+        }
+        .btn-refund:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #999;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            padding: 1rem;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        .success-message {
+            display: none;
+            color: #155724;
+            padding: 1rem;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        .logout-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .logout-btn:hover {
+            opacity: 0.9;
+            color: white;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand"><i class="fas fa-chart-line"></i> Payment Portal Admin</span>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3" id="userEmail">Admin</span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2">
+                <div class="sidebar">
+                    <a href="#" onclick="switchTab('plans')" id="plansTab" class="active"><i class="fas fa-credit-card"></i> Plans</a>
+                    <a href="#" onclick="switchTab('users')" id="usersTab"><i class="fas fa-users"></i> Users</a>
+                    <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-10">
+                <div class="main-content">
+                    <!-- PLANS TAB -->
+                    <div id="plansContent">
+                        <div class="page-header">
+                            <h1><i class="fas fa-list"></i> All Payment Plans</h1>
+                            <p class="text-muted">Manage and refund user subscription plans</p>
+                        </div>
+
+                    <!-- Messages -->
+                    <div id="successMessage" class="success-message"></div>
+                    <div id="errorMessage" class="error-message"></div>
+
+                    <!-- Create Plan Button -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <button class="btn btn-primary" onclick="openCreatePlanModal()">
+                            <i class="fas fa-plus"></i> Create Plan
+                        </button>
+                    </div>
+
+                    <!-- Search Box -->
+                    <div class="search-box d-flex align-items-center gap-3" style="flex-wrap: wrap;">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Search by customer email or ID..." onkeyup="filterPlans()">
+                        <span class="badge bg-success">Active</span>
+                        <span class="badge bg-secondary">Completed</span>
+                        <span class="badge bg-warning text-dark">Error</span>
+                        <span class="badge bg-danger">Cancelled</span>
+                    </div>
+
+                    <!-- Table -->
+                    <div class="table-container">
+                        <div id="loadingSpinner" class="loading" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <table class="table" id="plansTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>Customer Email</th>
+                                    <th>Student</th>
+                                    <th>Amount</th>
+                                    <th>Progress</th>
+                                    <th>Status</th>
+                                    <th>Start Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="plansBody">
+                            </tbody>
+                        </table>
+                        <div id="noData" class="no-data" style="display: none;">
+                            <i class="fas fa-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                            <p style="margin-top: 1rem;">No plans found</p>
+                        </div>
+                    </div>
+
+                    <!-- End Plans Tab -->
+                </div>
+
+                    <!-- USERS TAB -->
+                    <div id="usersContent" style="display: none;">
+                        <div class="page-header">
+                            <h1><i class="fas fa-users"></i> User Management</h1>
+                            <p class="text-muted">View and manage user accounts</p>
+                        </div>
+
+                        <!-- Messages -->
+                        <div id="usersSuccessMessage" class="success-message"></div>
+                        <div id="usersErrorMessage" class="error-message"></div>
+
+                        <!-- Search Box -->
+                        <div class="search-box">
+                            <input type="text" id="userSearchInput" class="form-control" placeholder="Search by email..." onkeyup="filterUsers()">
+                        </div>
+
+                        <!-- Users Table -->
+                        <div class="table-container">
+                            <div id="usersLoadingSpinner" class="loading" style="display: none;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <table class="table" id="usersTable" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Students</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersBody">
+                                </tbody>
+                            </table>
+                            <div id="usersNoData" class="no-data" style="display: none;">
+                                <i class="fas fa-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                                <p style="margin-top: 1rem;">No users found</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reset User Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="resetError" class="error-message"></div>
+                    <p id="resetUserEmail" style="margin-bottom: 1rem; font-weight: 500;"></p>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Password</label>
+                        <input type="password" id="newPassword" class="form-control" placeholder="Enter new password (min 6 characters)" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="resetPasswordBtn">Reset Password</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Role Modal -->
+    <div class="modal fade" id="changeRoleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Change User Role</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="roleError" class="error-message"></div>
+                    <p id="changeRoleUserEmail" style="margin-bottom: 1rem; font-weight: 500;"></p>
+                    <div class="mb-3">
+                        <label for="userRole" class="form-label">Select Role</label>
+                        <select id="userRole" class="form-select">
+                            <option value="USER">User</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="REFUND_APPROVER">Refund Approver</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="changeRoleBtn">Change Role</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students Modal -->
+    <div class="modal fade" id="studentsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Students</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="studentsError" class="error-message"></div>
+                    <div id="studentsSuccess" class="success-message"></div>
+                    
+                    <p id="studentsUserEmail" style="margin-bottom: 1.5rem; font-weight: 500;"></p>
+                    
+                    <!-- Add Student Form -->
+                    <div class="card mb-3">
+                        <div class="card-header">Add Student</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <input type="text" id="newStudentId" class="form-control" placeholder="Student ID" required>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <input type="text" id="newStudentFirstName" class="form-control" placeholder="First Name" required>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <input type="text" id="newStudentLastName" class="form-control" placeholder="Last Name" required>
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <button class="btn btn-primary w-100" onclick="addStudentToUser()">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Students List -->
+                    <div class="card">
+                        <div class="card-header">Current Students</div>
+                        <div class="card-body">
+                            <div id="studentsListLoading" style="text-align: center; padding: 2rem; display: none;">
+                                <div class="spinner-border text-primary" role="status"></div>
+                            </div>
+                            <table class="table" id="studentsListTable" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Student ID</th>
+                                        <th>Name</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsListBody"></tbody>
+                            </table>
+                            <div id="studentsListEmpty" style="text-align: center; padding: 2rem; color: #999; display: none;">
+                                No students added yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Plan Modal -->
+    <div class="modal fade" id="createPlanModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Payment Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="createPlanError" class="error-message"></div>
+                    
+                    <!-- User Selection -->
+                    <div class="mb-3">
+                        <label for="planUserSearch" class="form-label">Assign to User</label>
+                        <input type="text" id="planUserSearch" class="form-control" placeholder="Search by email..." onkeyup="searchPlanUsers()">
+                        <div id="planUserResults" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; width: 95%; display: none; z-index: 1000;">
+                        </div>
+                        <p id="selectedUserEmail" style="margin-top: 0.5rem; color: #667eea; font-weight: 500; display: none;"></p>
+                    </div>
+                    <input type="hidden" id="planUserId">
+                    
+                    <!-- Student Selection -->
+                    <div class="mb-3">
+                        <label for="planStudent" class="form-label">Assign to Student</label>
+                        <select id="planStudent" class="form-select">
+                            <option value="">Select a student (optional)...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planTotalOwed" class="form-label">Total Owed ($)</label>
+                                <input type="number" id="planTotalOwed" class="form-control" placeholder="e.g., 99.99" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planAmountPerInstance" class="form-label">Amount per Instance ($)</label>
+                                <input type="number" id="planAmountPerInstance" class="form-control" placeholder="e.g., 9.99" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="planFrequency" class="form-label">Frequency</label>
+                        <select id="planFrequency" class="form-select" required>
+                            <option value="">Select frequency...</option>
+                            <option value="MONTHLY" selected>Monthly</option>
+                            <option value="QUARTERLY">Quarterly</option>
+                            <option value="SEMI_ANNUAL">Semi-Annual</option>
+                            <option value="ANNUAL">Annual</option>
+                            <option value="ONE_TIME">One Time</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="createPlanBtn">Create Plan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Plan Payments</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="paymentError" class="error-message"></div>
+                    <div id="paymentSuccess" class="success-message"></div>
+
+                    <!-- Tabs for different sections -->
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="paymentHistoryTab" data-bs-toggle="tab" data-bs-target="#paymentHistoryPanel" type="button">Payment History</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="cardInfoTab" data-bs-toggle="tab" data-bs-target="#cardInfoPanel" type="button">Card Info</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="addPaymentTab" data-bs-toggle="tab" data-bs-target="#addPaymentPanel" type="button">Add Payment</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                        <!-- Payment History Tab -->
+                        <div class="tab-pane fade show active" id="paymentHistoryPanel" role="tabpanel">
+                            <h6 class="mb-3">Payment History</h6>
+                            <div id="paymentHistoryList" class="list-group">
+                                <p class="text-muted">Loading payments...</p>
+                            </div>
+                        </div>
+
+                        <!-- Card Info Tab -->
+                        <div class="tab-pane fade" id="cardInfoPanel" role="tabpanel">
+                            <h6 class="mb-3">Credit Card Information</h6>
+                            <div class="mb-3">
+                                <label for="cardHolderName" class="form-label">Cardholder Name</label>
+                                <input type="text" id="cardHolderName" class="form-control" placeholder="Full name on card">
+                            </div>
+                            <div class="mb-3">
+                                <label for="cardBrand" class="form-label">Card Brand</label>
+                                <select id="cardBrand" class="form-select">
+                                    <option value="">Select card type...</option>
+                                    <option value="VISA">Visa</option>
+                                    <option value="MASTERCARD">Mastercard</option>
+                                    <option value="AMEX">American Express</option>
+                                    <option value="DISCOVER">Discover</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="cardLast4" class="form-label">Last 4 Digits</label>
+                                <input type="text" id="cardLast4" class="form-control" placeholder="e.g., 4242" maxlength="4">
+                            </div>
+                            <button class="btn btn-primary" onclick="updateCardInfo()">Update Card Info</button>
+                        </div>
+
+                        <!-- Add Payment Tab -->
+                        <div class="tab-pane fade" id="addPaymentPanel" role="tabpanel">
+                            <h6 class="mb-3">Add Payment</h6>
+                            <div class="mb-3">
+                                <label for="paymentAmount" class="form-label">Amount ($)</label>
+                                <input type="number" id="paymentAmount" class="form-control" placeholder="0.00" min="0" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label for="paymentMethod" class="form-label">Payment Method</label>
+                                <select id="paymentMethod" class="form-select" onchange="togglePaymentFields()">
+                                    <option value="CARD">Credit Card</option>
+                                    <option value="CASH">Cash</option>
+                                    <option value="CHECK">Check</option>
+                                </select>
+                            </div>
+                            <div id="cardFields" style="display: block;">
+                                                            <div id="checkFields" style="display: none;">
+                                                                <div class="mb-3">
+                                                                    <label for="adminCheckNumber" class="form-label">Check Number</label>
+                                                                    <input type="text" id="adminCheckNumber" class="form-control" placeholder="Enter check number">
+                                                                </div>
+                                                            </div>
+                                <div class="mb-3">
+                                    <label for="adminCardNumber" class="form-label">Card Number</label>
+                                    <input type="text" id="adminCardNumber" class="form-control" maxlength="19" placeholder="1234 5678 9012 3456">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="adminCardExpiry" class="form-label">Expiry (MM/YY)</label>
+                                        <input type="text" id="adminCardExpiry" class="form-control" maxlength="5" placeholder="MM/YY">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="adminCardCVC" class="form-label">CVC</label>
+                                        <input type="text" id="adminCardCVC" class="form-control" maxlength="4" placeholder="CVC">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="adminCardHolder" class="form-label">Cardholder Name</label>
+                                    <input type="text" id="adminCardHolder" class="form-control" placeholder="Full name on card">
+                                </div>
+                            </div>
+                            <div id="adminPaymentOptions" style="display: none;">
+                                <p class="text-info small">As an admin, you can record cash payments directly.</p>
+                            </div>
+                            <button class="btn btn-primary" onclick="addPayment()">Record Payment</button>
+                        </div>
+                    </div>
+
+                    <!-- Plan Summary -->
+                    <div class="mt-4 pt-3 border-top">
+                        <h6>Plan Summary</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Total Owed:</strong> $<span id="modalTotalOwed">0.00</span></p>
+                                <p><strong>Amount Paid:</strong> $<span id="modalAmountPaid">0.00</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Status:</strong> <span id="modalStatus" class="badge"></span></p>
+                                <p><strong>Progress:</strong> <span id="modalProgress">0%</span></p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label for="planFrequencyUpdate" class="form-label"><strong>Payment Frequency</strong></label>
+                            <div class="d-flex align-items-center gap-2">
+                                <select id="planFrequencyUpdate" class="form-select" style="flex: 1;">
+                                    <option value="MONTHLY">Monthly</option>
+                                    <option value="QUARTERLY">Quarterly</option>
+                                    <option value="SEMI_ANNUAL">Semi-Annual</option>
+                                    <option value="ANNUAL">Annual</option>
+                                    <option value="ONE_TIME">One Time</option>
+                                </select>
+                                <button class="btn btn-sm btn-primary" onclick="updatePlanFrequency()">Update</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="cancelPlanFromModal()" id="cancelPlanBtn">
+                        <i class="fas fa-times-circle"></i> Cancel Plan
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+                // Show/hide card/check fields based on payment method
+                function togglePaymentFields() {
+                    const method = document.getElementById('paymentMethod').value;
+                    document.getElementById('cardFields').style.display = method === 'CARD' ? 'block' : 'none';
+                    document.getElementById('checkFields').style.display = method === 'CHECK' ? 'block' : 'none';
+                }
+                // Initialize payment fields visibility on page load
+                document.addEventListener('DOMContentLoaded', () => {
+                    togglePaymentFields();
+                });
+        let allPlans = [];
+        let allUsers = [];
+        let currentResetUserId = null;
+        let currentRoleUserId = null;
+        let currentPaymentPlanId = null;
+
+        // Get JWT token
+        function getToken() {
+            return localStorage.getItem('jwt');
+        }
+
+        // Get current user email
+        async function getCurrentUser() {
+            try {
+                const token = getToken();
+                const res = await fetch('api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+                    document.getElementById('userEmail').textContent = fullName || user.email;
+                }
+            } catch (error) {
+                console.error('Error fetching current user:', error);
+            }
+        }
+
+        // Fetch all plans for admin
+        async function fetchAllPlans() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/payments';
+                return;
+            }
+
+            try {
+                document.getElementById('loadingSpinner').style.display = 'block';
+                document.getElementById('plansTable').style.display = 'none';
+                document.getElementById('noData').style.display = 'none';
+
+                const res = await fetch('api/admin/plans', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    showError('Failed to fetch plans. You may not have admin access.');
+                    return;
+                }
+
+                allPlans = await res.json();
+                displayPlans(allPlans);
+            } catch (error) {
+                console.error('Error fetching plans:', error);
+                showError('An error occurred while fetching plans');
+            } finally {
+                document.getElementById('loadingSpinner').style.display = 'none';
+            }
+        }
+
+        // Display plans in table
+        function displayPlans(plans) {
+            const tbody = document.getElementById('plansBody');
+            tbody.innerHTML = '';
+
+            if (plans.length === 0) {
+                document.getElementById('noData').style.display = 'block';
+                document.getElementById('plansTable').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('plansTable').style.display = 'table';
+            document.getElementById('noData').style.display = 'none';
+
+            plans.forEach(plan => {
+                const row = document.createElement('tr');
+                const startDate = new Date(plan.startDate).toLocaleDateString();
+                const studentDisplay = plan.studentName ? `${plan.studentName} (#${plan.studentId})` : 'No student assigned';
+                const amountCents = Number(plan.amount) || 0;
+                const totalOwedCents = Number(plan.totalOwed) || amountCents;
+                const amountPaidCents = Number(plan.amountPaid) || 0;
+                const totalOwed = (totalOwedCents / 100).toFixed(2);
+                const amountPaid = (amountPaidCents / 100).toFixed(2);
+                const progressPercent = totalOwedCents > 0 ? Math.min(100, Math.round((amountPaidCents / totalOwedCents) * 100)) : 0;
+                const statusBadge = renderStatusBadge(plan.status);
+                
+                row.innerHTML = `
+                    <td>${plan.userEmail || 'N/A'}</td>
+                    <td>${studentDisplay}</td>
+                    <td>$${(plan.amount / 100).toFixed(2)}</td>
+                    <td>
+                        <div class="d-flex justify-content-between small"><span>$${amountPaid}</span><span>$${totalOwed}</span></div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar" role="progressbar" style="width: ${progressPercent}%;" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </td>
+                    <td>${statusBadge}</td>
+                    <td>${startDate}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="openPaymentModal('${plan.id}')">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                        <button class="btn-refund" onclick="openRefundModal('${plan.id}', '${plan.amountPaid}', '${plan.paymentMethod}', this)" ${plan.status === 'CANCELLED' ? 'disabled' : ''}>
+                            Refund
+                        </button>
+                            <!-- Refund Modal -->
+                            <div class="modal fade" id="refundModal" tabindex="-1" aria-labelledby="refundModalLabel" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="refundModalLabel">Refund Payment</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <form id="refundForm">
+                                                <div class="mb-3">
+                                                    <label for="refundAmount" class="form-label">Refund Amount</label>
+                                                    <input type="number" class="form-control" id="refundAmount" min="0.01" step="0.01" required>
+                                                    <div class="form-text">Max: <span id="refundMax"></span></div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="refundMethod" class="form-label">Refund Method</label>
+                                                    <select class="form-select" id="refundMethod" required>
+                                                        <option value="">Select method</option>
+                                                        <option value="CARD">Card</option>
+                                                        <option value="CASH">Cash</option>
+                                                        <option value="CHECK">Check</option>
+                                                    </select>
+                                                    <div class="form-text" id="refundMethodNote"></div>
+                                                </div>
+                                            </form>
+                                            <div id="refundError" class="error-message" style="display:none;"></div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="button" class="btn btn-danger" id="confirmRefundBtn">Refund</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            // Open refund modal
+                            let refundPlanId = null;
+                            let refundButtonRef = null;
+                            function openRefundModal(planId, maxAmount, paymentMethod, buttonRef) {
+                                refundPlanId = planId;
+                                refundButtonRef = buttonRef;
+                                const modal = new bootstrap.Modal(document.getElementById('refundModal'));
+                                document.getElementById('refundAmount').value = '';
+                                document.getElementById('refundMax').textContent = `$${(Number(maxAmount)/100).toFixed(2)}`;
+                                document.getElementById('refundAmount').max = (Number(maxAmount)/100).toFixed(2);
+                                document.getElementById('refundMethod').value = paymentMethod;
+                                document.getElementById('refundMethodNote').textContent = '';
+                                document.getElementById('refundError').style.display = 'none';
+                                // If original method is CASH, force refund as CHECK
+                                if (paymentMethod === 'CASH') {
+                                    document.getElementById('refundMethod').value = 'CHECK';
+                                    document.getElementById('refundMethod').disabled = true;
+                                    document.getElementById('refundMethodNote').textContent = 'Cash payments must be refunded by check after approval.';
+                                } else {
+                                    document.getElementById('refundMethod').disabled = false;
+                                }
+                                modal.show();
+                            }
+
+                            document.getElementById('confirmRefundBtn').addEventListener('click', async function() {
+                                const token = getToken();
+                                if (!token) {
+                                    window.location.href = '/payments';
+                                    return;
+                                }
+                                const amount = parseFloat(document.getElementById('refundAmount').value);
+                                const maxAmount = parseFloat(document.getElementById('refundAmount').max);
+                                const method = document.getElementById('refundMethod').value;
+                                const errorDiv = document.getElementById('refundError');
+                                errorDiv.style.display = 'none';
+                                if (!amount || amount <= 0 || amount > maxAmount) {
+                                    errorDiv.textContent = 'Enter a valid refund amount.';
+                                    errorDiv.style.display = 'block';
+                                    return;
+                                }
+                                if (!method) {
+                                    errorDiv.textContent = 'Select a refund method.';
+                                    errorDiv.style.display = 'block';
+                                    return;
+                                }
+                                refundButtonRef.disabled = true;
+                                try {
+                                    const res = await fetch(`api/admin/plans/${refundPlanId}/refund`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Authorization': `Bearer ${token}`,
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify({ amount: Math.round(amount * 100), method })
+                                    });
+                                    if (!res.ok) {
+                                        errorDiv.textContent = 'Failed to refund plan.';
+                                        errorDiv.style.display = 'block';
+                                        refundButtonRef.disabled = false;
+                                        return;
+                                    }
+                                    showSuccess('Plan refunded successfully');
+                                    bootstrap.Modal.getInstance(document.getElementById('refundModal')).hide();
+                                    setTimeout(() => {
+                                        fetchAllPlans();
+                                    }, 1000);
+                                } catch (error) {
+                                    errorDiv.textContent = 'An error occurred while refunding the plan.';
+                                    errorDiv.style.display = 'block';
+                                    refundButtonRef.disabled = false;
+                                }
+                            });
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderStatusBadge(status) {
+            const normalized = (status || '').toUpperCase();
+            switch (normalized) {
+                case 'COMPLETED':
+                    return '<span class="badge bg-secondary">Completed</span>';
+                case 'ERROR':
+                    return '<span class="badge bg-warning text-dark">Error</span>';
+                case 'CANCELLED':
+                    return '<span class="badge bg-danger">Cancelled</span>';
+                default:
+                    return '<span class="badge bg-success">Active</span>';
+            }
+        }
+
+        // Filter plans by search term
+        function filterPlans() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allPlans.filter(plan => {
+                const email = (plan.userEmail || '').toLowerCase();
+                const id = (plan.id || '').toLowerCase();
+                return email.includes(searchTerm) || id.includes(searchTerm);
+            });
+            displayPlans(filtered);
+        }
+
+            // ...existing code...
+            const method = document.getElementById('paymentMethod').value;
+            if (method === 'CHECK') {
+                const checkNumber = document.getElementById('adminCheckNumber').value.trim();
+                if (!checkNumber) {
+                    showError('Check number is required for check payments.');
+                    return;
+                }
+                // Add checkNumber to payment payload here
+            }
+
+        // Show success message
+        function showSuccess(message) {
+            const div = document.getElementById('successMessage');
+            div.textContent = message;
+            div.style.display = 'block';
+            setTimeout(() => {
+                div.style.display = 'none';
+            }, 5000);
+        }
+
+        // Show error message
+        function showError(message) {
+            const div = document.getElementById('errorMessage');
+            div.textContent = message;
+            div.style.display = 'block';
+            setTimeout(() => {
+                div.style.display = 'none';
+            }, 5000);
+        }
+
+        // Show error message for users tab
+        function showUserError(message) {
+            const div = document.getElementById('usersErrorMessage');
+            div.textContent = message;
+            div.style.display = 'block';
+            setTimeout(() => {
+                div.style.display = 'none';
+            }, 5000);
+        }
+
+        // Show success message for users tab
+        function showUserSuccess(message) {
+            const div = document.getElementById('usersSuccessMessage');
+            div.textContent = message;
+            div.style.display = 'block';
+            setTimeout(() => {
+                div.style.display = 'none';
+            }, 5000);
+        }
+
+        // Switch between tabs
+        function switchTab(tab) {
+            const plansContent = document.getElementById('plansContent');
+            const usersContent = document.getElementById('usersContent');
+            const plansTab = document.getElementById('plansTab');
+            const usersTab = document.getElementById('usersTab');
+
+            // ...existing code...
+
+            if (tab === 'plans') {
+                plansContent.style.display = 'block';
+                usersContent.style.display = 'none';
+                plansTab.classList.add('active');
+                usersTab.classList.remove('active');
+                // Load users for search in plan creation
+                if (allUsers.length === 0) {
+                    fetchAllUsers();
+                }
+            } else if (tab === 'users') {
+                plansContent.style.display = 'none';
+                usersContent.style.display = 'block';
+                plansTab.classList.remove('active');
+                usersTab.classList.add('active');
+                fetchAllUsers();
+            }
+        }
+
+        // Fetch all users
+        async function fetchAllUsers() {
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/payments';
+                return;
+            }
+
+            try {
+                document.getElementById('usersLoadingSpinner').style.display = 'block';
+                document.getElementById('usersTable').style.display = 'none';
+                document.getElementById('usersNoData').style.display = 'none';
+
+                const res = await fetch('api/admin/users', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    document.getElementById('usersLoadingSpinner').style.display = 'none';
+                    showUserError('Failed to fetch users. Status: ' + res.status);
+                    document.getElementById('usersNoData').style.display = 'block';
+                    return;
+                }
+
+                const data = await res.json();
+                allUsers = Array.isArray(data) ? data : Object.values(data);
+                displayUsers(allUsers);
+            } catch (error) {
+                console.error('Error fetching users:', error);
+                showUserError('An error occurred while fetching users: ' + error.message);
+                document.getElementById('usersNoData').style.display = 'block';
+            } finally {
+                document.getElementById('usersLoadingSpinner').style.display = 'none';
+            }
+        }
+
+        // Display users in table
+        function displayUsers(users) {
+            const tbody = document.getElementById('usersBody');
+            const usersTable = document.getElementById('usersTable');
+            const usersNoData = document.getElementById('usersNoData');
+            const usersLoadingSpinner = document.getElementById('usersLoadingSpinner');
+            
+            // ...existing code...
+            tbody.innerHTML = '';
+
+            if (!users || users.length === 0) {
+                usersNoData.style.display = 'block';
+                usersTable.style.display = 'none';
+                usersLoadingSpinner.style.display = 'none';
+                return;
+            }
+
+            usersTable.style.display = 'table';
+            usersNoData.style.display = 'none';
+            usersLoadingSpinner.style.display = 'none';
+
+            users.forEach((user, index) => {
+                const row = document.createElement('tr');
+                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A';
+                const studentCount = user.students ? user.students.length : 0;
+                
+                // Use textContent for safe content, data attributes for event listeners
+                const nameCell = document.createElement('td');
+                nameCell.textContent = fullName;
+                row.appendChild(nameCell);
+                
+                const emailCell = document.createElement('td');
+                emailCell.textContent = user.email;
+                row.appendChild(emailCell);
+                
+                const roleCell = document.createElement('td');
+                const roleBadge = document.createElement('span');
+                roleBadge.className = 'status-badge status-active';
+                roleBadge.textContent = user.role;
+                roleCell.appendChild(roleBadge);
+                row.appendChild(roleCell);
+                
+                const studentCell = document.createElement('td');
+                studentCell.textContent = studentCount + ' student(s)';
+                row.appendChild(studentCell);
+                
+                const actionsCell = document.createElement('td');
+                
+                const studentBtn = document.createElement('button');
+                studentBtn.className = 'btn btn-sm btn-primary me-2';
+                studentBtn.innerHTML = '<i class="fas fa-graduation-cap"></i> Students';
+                studentBtn.dataset.userId = user.id;
+                studentBtn.dataset.email = user.email;
+                studentBtn.addEventListener('click', () => viewUserStudents(user.id, user.email));
+                actionsCell.appendChild(studentBtn);
+                
+                const resetBtn = document.createElement('button');
+                resetBtn.className = 'btn btn-sm btn-warning me-2';
+                resetBtn.innerHTML = '<i class="fas fa-key"></i> Reset Password';
+                resetBtn.dataset.userId = user.id;
+                resetBtn.dataset.email = user.email;
+                resetBtn.addEventListener('click', () => openResetPasswordModal(user.id, user.email));
+                actionsCell.appendChild(resetBtn);
+                
+                const roleBtn = document.createElement('button');
+                roleBtn.className = 'btn btn-sm btn-info';
+                roleBtn.innerHTML = '<i class="fas fa-user-shield"></i> Change Role';
+                roleBtn.dataset.userId = user.id;
+                roleBtn.dataset.email = user.email;
+                roleBtn.dataset.role = user.role;
+                roleBtn.addEventListener('click', () => openChangeRoleModal(user.id, user.email, user.role));
+                actionsCell.appendChild(roleBtn);
+                
+                row.appendChild(actionsCell);
+                tbody.appendChild(row);
+            });
+            // ...existing code...
+        }
+
+        // Filter users by search term
+        function filterUsers() {
+            const searchTerm = document.getElementById('userSearchInput').value.toLowerCase();
+            const filtered = allUsers.filter(user => {
+                const email = (user.email || '').toLowerCase();
+                return email.includes(searchTerm);
+            });
+            displayUsers(filtered);
+        }
+
+        // Open reset password modal
+        function openResetPasswordModal(userId, email) {
+            currentResetUserId = userId;
+            document.getElementById('resetUserEmail').textContent = `Resetting password for: ${email}`;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('resetError').style.display = 'none';
+            const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+            modal.show();
+        }
+
+        // Open change role modal
+        function openChangeRoleModal(userId, email, currentRole) {
+            currentRoleUserId = userId;
+            document.getElementById('changeRoleUserEmail').textContent = `Changing role for: ${email}`;
+            document.getElementById('userRole').value = currentRole;
+            document.getElementById('roleError').style.display = 'none';
+            const modal = new bootstrap.Modal(document.getElementById('changeRoleModal'));
+            modal.show();
+        }
+
+        // Reset user password
+        document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+            const newPassword = document.getElementById('newPassword').value.trim();
+            const errorDiv = document.getElementById('resetError');
+
+            if (!newPassword || newPassword.length < 6) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Password must be at least 6 characters';
+                return;
+            }
+
+            const token = getToken();
+            if (!token) {
+                window.location.href = '/payments';
+                return;
+            }
+
+            try {
+                const res = await fetch(`api/admin/users/${currentResetUserId}/reset-password`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ password: newPassword })
+                });
+
+                if (!res.ok) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Failed to reset password';
+                    return;
+                }
+
+                showUserSuccess('Password reset successfully');
+                bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+                fetchAllUsers();
+            } catch (error) {
+                console.error('Error resetting password:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'An error occurred while resetting the password';
+            }
+        });
+
+        // Change user role
+        document.getElementById('changeRoleBtn').addEventListener('click', async () => {
+            const newRole = document.getElementById('userRole').value;
+            const errorDiv = document.getElementById('roleError');
+            const token = getToken();
+
+            if (!token) {
+                window.location.href = '/payments';
+                return;
+            }
+
+            try {
+                const res = await fetch(`api/admin/users/${currentRoleUserId}/role`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ role: newRole })
+                });
+
+                if (!res.ok) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Failed to change role';
+                    return;
+                }
+
+                showUserSuccess(`Role updated to ${newRole} successfully`);
+                bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+                fetchAllUsers();
+            } catch (error) {
+                console.error('Error changing role:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'An error occurred while changing the role';
+            }
+        });
+
+        // Open create plan modal
+        function openCreatePlanModal() {
+            document.getElementById('planUserSearch').value = '';
+            document.getElementById('planUserId').value = '';
+            document.getElementById('selectedUserEmail').style.display = 'none';
+            document.getElementById('planUserResults').style.display = 'none';
+            document.getElementById('planTotalOwed').value = '';
+            document.getElementById('planAmountPerInstance').value = '';
+            document.getElementById('planFrequency').value = '';
+            document.getElementById('createPlanError').style.display = 'none';
+            const modal = new bootstrap.Modal(document.getElementById('createPlanModal'));
+            modal.show();
+        }
+
+        // Search for users to assign plan to
+        let planUsersCache = [];
+        async function searchPlanUsers() {
+            const searchTerm = document.getElementById('planUserSearch').value.toLowerCase().trim();
+            const resultsDiv = document.getElementById('planUserResults');
+            
+            if (!searchTerm) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            // Filter from allUsers which is already loaded
+            const filtered = allUsers.filter(user => 
+                user.email.toLowerCase().includes(searchTerm)
+            );
+
+            if (filtered.length === 0) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            resultsDiv.innerHTML = filtered.map(user => 
+                `<div style="padding: 0.75rem; border-bottom: 1px solid #eee; cursor: pointer; hover: background-color: #f5f5f5;" onclick="selectPlanUser('${user.id}', '${user.email}')">${user.email}</div>`
+            ).join('');
+            resultsDiv.style.display = 'block';
+        }
+
+        // Select a user for the plan
+        function selectPlanUser(userId, email) {
+            document.getElementById('planUserId').value = userId;
+            document.getElementById('planUserSearch').value = email;
+            document.getElementById('selectedUserEmail').textContent = `✓ Selected: ${email}`;
+            document.getElementById('selectedUserEmail').style.display = 'block';
+            document.getElementById('planUserResults').style.display = 'none';
+            
+            // Load students for this user
+            loadStudentsForUser(userId);
+        }
+
+        // Load students for selected user
+        async function loadStudentsForUser(userId) {
+            try {
+                const token = getToken();
+                const res = await fetch(`api/students/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!res.ok) {
+                    console.error('Failed to load students');
+                    return;
+                }
+                
+                const students = await res.json();
+                const select = document.getElementById('planStudent');
+                
+                // Clear existing options except first
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                
+                // Add students
+                plans.forEach(plan => {
+                    const row = document.createElement('tr');
+                    const startDate = new Date(plan.startDate).toLocaleDateString();
+                    const studentDisplay = plan.studentName ? `${plan.studentName} (#${plan.studentId})` : 'No student assigned';
+                    const amountCents = Number(plan.amount) || 0;
+                    const totalOwedCents = Number(plan.totalOwed) || amountCents;
+                    const amountPaidCents = Number(plan.amountPaid) || 0;
+                    const totalOwed = (totalOwedCents / 100).toFixed(2);
+                    const amountPaid = (amountPaidCents / 100).toFixed(2);
+                    const progressPercent = totalOwedCents > 0 ? Math.min(100, Math.round((amountPaidCents / totalOwedCents) * 100)) : 0;
+                    const statusBadge = renderStatusBadge(plan.status);
+                    let actionButtons = `
+                        <button class="btn btn-sm btn-primary" onclick="openPaymentModal('${plan.id}')">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                        <button class="btn-refund" onclick="openRefundModal('${plan.id}', '${plan.amountPaid}', '${plan.paymentMethod}', this)" ${plan.status === 'CANCELLED' ? 'disabled' : ''}>
+                            Refund
+                        </button>
+                    `;
+                    if (plan.status === 'CANCELLED') {
+                        actionButtons += `
+                            <button class="btn btn-success ms-2" onclick="reactivatePlan('${plan.id}', this)">
+                                <i class="fas fa-redo"></i> Re-enable
+                            </button>
+                        `;
+                    }
+                    row.innerHTML = `
+                        <td>${plan.userEmail || 'N/A'}</td>
+                        <td>${studentDisplay}</td>
+                        <td>$${(plan.amount / 100).toFixed(2)}</td>
+                        <td>
+                            <div class="d-flex justify-content-between small"><span>$${amountPaid}</span><span>$${totalOwed}</span></div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar" role="progressbar" style="width: ${progressPercent}%;" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>${startDate}</td>
+                        <td>
+                            ${actionButtons}
+                            <!-- ...existing code for refund modal... -->
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                        // Reactivate cancelled plan
+                        async function reactivatePlan(planId, button) {
+                            const token = getToken();
+                            if (!token) {
+                                window.location.href = '/payments';
+                                return;
+                            }
+                            button.disabled = true;
+                            try {
+                                const res = await fetch(`api/admin/plans/${planId}/reactivate`, {
+                                    method: 'POST',
+                                    headers: { 'Authorization': `Bearer ${token}' } }
+                                });
+                                if (!res.ok) {
+                                    showError('Failed to re-enable plan');
+                                    button.disabled = false;
+                                    return;
+                                }
+                                showSuccess('Plan re-enabled successfully');
+                                setTimeout(() => {
+                                    fetchAllPlans();
+                                }, 1000);
+                            } catch (error) {
+                                console.error('Error re-enabling plan:', error);
+                                showError('An error occurred while re-enabling the plan');
+                                button.disabled = false;
+                            }
+                        }
+                errorDiv.textContent = 'Valid amount per instance is required';
+                return;
+            }
+
+            if (parseFloat(amountPerInstance) > parseFloat(totalOwed)) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Amount per instance cannot exceed total owed';
+                return;
+            }
+
+            if (!frequency) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Please select a frequency';
+                return;
+            }
+
+            if (!token) {
+                window.location.href = '/payments';
+                return;
+            }
+
+            try {
+                // Convert dollars to cents for the API
+                const amountInCents = Math.round(parseFloat(amountPerInstance) * 100);
+                const totalOwedInCents = Math.round(parseFloat(totalOwed) * 100);
+
+                const body = {
+                    amount: amountInCents,
+                    totalOwed: totalOwedInCents,
+                    frequency,
+                    currency: 'USD'
+                };
+                
+                // Add studentId if selected
+                if (studentId) {
+                    body.studentId = studentId;
+                }
+
+                const res = await fetch(`api/users/${userId}/plans`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!res.ok) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Failed to create plan';
+                    return;
+                }
+
+                showSuccess('Plan created successfully');
+                bootstrap.Modal.getInstance(document.getElementById('createPlanModal')).hide();
+                fetchAllPlans();
+            } catch (error) {
+                console.error('Error creating plan:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'An error occurred while creating the plan';
+            }
+        });
+
+        // View and manage students for a user
+        let currentStudentsUserId = null;
+        async function viewUserStudents(userId, email) {
+            currentStudentsUserId = userId;
+            document.getElementById('studentsUserEmail').textContent = `Students for: ${email}`;
+            document.getElementById('studentsError').style.display = 'none';
+            document.getElementById('studentsSuccess').style.display = 'none';
+            document.getElementById('newStudentId').value = '';
+            document.getElementById('newStudentFirstName').value = '';
+            document.getElementById('newStudentLastName').value = '';
+            
+            const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
+            modal.show();
+            
+            await loadUserStudents(userId);
+        }
+
+        async function loadUserStudents(userId) {
+            const token = getToken();
+            document.getElementById('studentsListLoading').style.display = 'block';
+            document.getElementById('studentsListTable').style.display = 'none';
+            document.getElementById('studentsListEmpty').style.display = 'none';
+
+            try {
+                const res = await fetch(`api/students/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Failed to load students');
+                }
+
+                const students = await res.json();
+                displayStudentsList(students);
+            } catch (error) {
+                console.error('Error loading students:', error);
+                document.getElementById('studentsListEmpty').style.display = 'block';
+                document.getElementById('studentsListEmpty').textContent = 'Error loading students';
+            } finally {
+                document.getElementById('studentsListLoading').style.display = 'none';
+            }
+        }
+
+        function displayStudentsList(students) {
+            const tbody = document.getElementById('studentsListBody');
+            tbody.innerHTML = '';
+
+            if (!students || students.length === 0) {
+                document.getElementById('studentsListEmpty').style.display = 'block';
+                document.getElementById('studentsListTable').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('studentsListTable').style.display = 'table';
+            document.getElementById('studentsListEmpty').style.display = 'none';
+
+            students.forEach(student => {
+                const row = document.createElement('tr');
+                const fullName = `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A';
+                
+                row.innerHTML = `
+                    <td>${student.studentId}</td>
+                    <td>${fullName}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeStudentFromUser('${student.studentId}')">
+                            Remove
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function addStudentToUser() {
+            const studentId = document.getElementById('newStudentId').value.trim();
+            const firstName = document.getElementById('newStudentFirstName').value.trim();
+            const lastName = document.getElementById('newStudentLastName').value.trim();
+            const errorDiv = document.getElementById('studentsError');
+            const successDiv = document.getElementById('studentsSuccess');
+            const token = getToken();
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            if (!studentId) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Student ID is required';
+                return;
+            }
+
+            try {
+                const res = await fetch(`api/students/user/${currentStudentsUserId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ studentId, firstName, lastName })
+                });
+
+                if (!res.ok) {
+                    throw new Error('Failed to add student');
+                }
+
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Student added successfully';
+                document.getElementById('newStudentId').value = '';
+                document.getElementById('newStudentFirstName').value = '';
+                document.getElementById('newStudentLastName').value = '';
+                
+                await loadUserStudents(currentStudentsUserId);
+                setTimeout(() => { successDiv.style.display = 'none'; }, 3000);
+            } catch (error) {
+                console.error('Error adding student:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Failed to add student';
+            }
+        }
+
+        async function removeStudentFromUser(studentId) {
+            if (!confirm('Remove this student from the account?')) {
+                return;
+            }
+
+            const token = getToken();
+            const errorDiv = document.getElementById('studentsError');
+            const successDiv = document.getElementById('studentsSuccess');
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            try {
+                const res = await fetch(`api/students/user/${currentStudentsUserId}/${studentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Failed to remove student');
+                }
+
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Student removed successfully';
+                
+                await loadUserStudents(currentStudentsUserId);
+                setTimeout(() => { successDiv.style.display = 'none'; }, 3000);
+            } catch (error) {
+                console.error('Error removing student:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Failed to remove student';
+            }
+        }
+
+        // Payment Modal Functions
+        async function openPaymentModal(planId) {
+            currentPaymentPlanId = planId;
+            const plan = allPlans.find(p => p.id === planId);
+            
+            if (!plan) {
+                alert('Plan not found');
+                return;
+            }
+
+            // Update plan summary
+            const totalOwedCents = Number(plan.totalOwed) || 0;
+            const amountPaidCents = Number(plan.amountPaid) || 0;
+            const totalOwed = (totalOwedCents / 100).toFixed(2);
+            const amountPaid = (amountPaidCents / 100).toFixed(2);
+            const progressPercent = totalOwedCents > 0 ? Math.min(100, Math.round((amountPaidCents / totalOwedCents) * 100)) : 0;
+
+            document.getElementById('modalTotalOwed').textContent = totalOwed;
+            document.getElementById('modalAmountPaid').textContent = amountPaid;
+            document.getElementById('modalProgress').textContent = `${progressPercent}%`;
+            document.getElementById('modalStatus').className = 'badge';
+            const statusClass = plan.status === 'COMPLETED' ? 'bg-secondary' : 
+                               plan.status === 'ERROR' ? 'bg-warning text-dark' : 
+                               plan.status === 'CANCELLED' ? 'bg-danger' : 'bg-success';
+            document.getElementById('modalStatus').className = `badge ${statusClass}`;
+            document.getElementById('modalStatus').textContent = plan.status || 'ACTIVE';
+
+            // Set current frequency
+            document.getElementById('planFrequencyUpdate').value = plan.frequency || 'MONTHLY';
+
+            // Update cancel button state
+            const cancelBtn = document.getElementById('cancelPlanBtn');
+            if (plan.status === 'CANCELLED') {
+                cancelBtn.disabled = true;
+                cancelBtn.textContent = 'Already Cancelled';
+            } else {
+                cancelBtn.disabled = false;
+                cancelBtn.innerHTML = '<i class="fas fa-times-circle"></i> Cancel Plan';
+            }
+
+            // Load payment history
+            await loadPaymentHistory(planId);
+
+            // Load card info
+            await loadCardInfo(planId);
+
+            // Show admin cash payment option if user is admin
+            const user = await getCurrentUserData();
+            if (user && user.role === 'ADMIN') {
+                document.getElementById('adminPaymentOptions').style.display = 'block';
+            }
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+            modal.show();
+        }
+
+        async function getCurrentUserData() {
+            const token = getToken();
+            const res = await fetch('api/auth/me', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+            return null;
+        }
+
+        async function loadPaymentHistory(planId) {
+            const token = getToken();
+            try {
+                const res = await fetch(`api/payments/plan/${planId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    console.error('Failed to load payments');
+                    document.getElementById('paymentHistoryList').innerHTML = '<p class="text-danger">Failed to load payments</p>';
+                    return;
+                }
+
+                const payments = await res.json();
+                const historyDiv = document.getElementById('paymentHistoryList');
+
+                if (payments.length === 0) {
+                    historyDiv.innerHTML = '<p class="text-muted">No payments recorded yet</p>';
+                    return;
+                }
+
+                historyDiv.innerHTML = payments.map(payment => {
+                    let extraInfo = '';
+                    if (payment.paymentMethod === 'CHECK' && payment.checkNumber) {
+                        extraInfo = `<span class="ms-2 text-info">Check #: ${payment.checkNumber}</span>`;
+                    } else if ((payment.paymentMethod === 'CARD' || payment.paymentMethod === 'Credit Card') && payment.cardLast4) {
+                        extraInfo = `<span class="ms-2 text-info">Card: ****${payment.cardLast4}</span>`;
+                    }
+                    return `
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="mb-0"><strong>$${(payment.amount / 100).toFixed(2)}</strong></p>
+                                <small class="text-muted">${payment.paymentMethod || 'Card'}${extraInfo}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge ${payment.status === 'PAID' ? 'bg-success' : payment.status === 'FAILED' ? 'bg-danger' : 'bg-warning'}">${payment.status}</span>
+                                <br><small class="text-muted">${new Date(payment.timestamp).toLocaleDateString()}</small>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading payments:', error);
+                document.getElementById('paymentHistoryList').innerHTML = '<p class="text-danger">Error loading payments</p>';
+            }
+        }
+
+        async function loadCardInfo(planId) {
+            const token = getToken();
+            try {
+                const res = await fetch(`api/payments/plan/${planId}/card`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    const card = await res.json();
+                    document.getElementById('cardHolderName').value = card.cardHolderName || '';
+                    document.getElementById('cardBrand').value = card.cardBrand || '';
+                    document.getElementById('cardLast4').value = card.cardLast4 || '';
+                }
+            } catch (error) {
+                console.error('Error loading card info:', error);
+            }
+        }
+
+        async function updateCardInfo() {
+            const token = getToken();
+            const planId = currentPaymentPlanId;
+
+            const cardData = {
+                cardHolderName: document.getElementById('cardHolderName').value,
+                cardBrand: document.getElementById('cardBrand').value,
+                cardLast4: document.getElementById('cardLast4').value
+            };
+
+            try {
+                const res = await fetch(`api/payments/plan/${planId}/card`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(cardData)
+                });
+
+                if (res.ok) {
+                    showPaymentSuccess('Card information updated successfully');
+                    // Refresh plan data
+                    await fetchAllPlans();
+                } else {
+                    showPaymentError('Failed to update card information');
+                }
+            } catch (error) {
+                console.error('Error updating card info:', error);
+                showPaymentError('Error updating card information');
+            }
+        }
+
+        async function addPayment() {
+            const token = getToken();
+            const planId = currentPaymentPlanId;
+            const amount = document.getElementById('paymentAmount').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+
+            if (!amount || amount <= 0) {
+                showPaymentError('Please enter a valid amount');
+                return;
+            }
+
+            const paymentData = {
+                amount: parseFloat(amount) * 100, // Convert to cents
+                paymentMethod: paymentMethod,
+                transactionId: `MANUAL-${Date.now()}`
+            };
+
+            try {
+                // Use admin endpoint for cash payments if payment method is CASH
+                const endpoint = paymentMethod === 'CASH' ? 
+                    `api/payments/admin/plan/${planId}/cash` : 
+                    `api/payments/plan/${planId}`;
+
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+
+                if (res.ok) {
+                    showPaymentSuccess('Payment added successfully');
+                    document.getElementById('paymentAmount').value = '';
+                    
+                    // Reload payment history and plan data
+                    await loadPaymentHistory(planId);
+                    await fetchAllPlans();
+                } else {
+                    const error = await res.json();
+                    showPaymentError(error.error || 'Failed to add payment');
+                }
+            } catch (error) {
+                console.error('Error adding payment:', error);
+                showPaymentError('Error adding payment');
+            }
+        }
+
+        function showPaymentSuccess(message) {
+            const successDiv = document.getElementById('paymentSuccess');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            document.getElementById('paymentError').style.display = 'none';
+            setTimeout(() => { successDiv.style.display = 'none'; }, 3000);
+        }
+
+        function showPaymentError(message) {
+            const errorDiv = document.getElementById('paymentError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('paymentSuccess').style.display = 'none';
+        }
+
+        async function updatePlanFrequency() {
+            const token = getToken();
+            const planId = currentPaymentPlanId;
+            const frequency = document.getElementById('planFrequencyUpdate').value;
+
+            try {
+                const res = await fetch(`api/plans/${planId}/frequency`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ frequency: frequency })
+                });
+
+                if (res.ok) {
+                    showPaymentSuccess('Payment frequency updated successfully');
+                    // Refresh plan data
+                    await fetchAllPlans();
+                } else {
+                    showPaymentError('Failed to update payment frequency');
+                }
+            } catch (error) {
+                console.error('Error updating frequency:', error);
+                showPaymentError('Error updating payment frequency');
+            }
+        }
+
+        async function cancelPlanFromModal() {
+            const token = getToken();
+            const planId = currentPaymentPlanId;
+            const plan = allPlans.find(p => p.id === planId);
+
+            if (!plan) {
+                alert('Plan not found');
+                return;
+            }
+
+            if (plan.status === 'CANCELLED') {
+                showPaymentError('This plan is already cancelled');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to cancel this payment plan? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`api/plans/${planId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    showPaymentSuccess('Plan cancelled successfully');
+                    // Close modal and refresh
+                    setTimeout(() => {
+                        bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+                        fetchAllPlans();
+                    }, 1500);
+                } else {
+                    showPaymentError('Failed to cancel plan');
+                }
+            } catch (error) {
+                console.error('Error cancelling plan:', error);
+                showPaymentError('Error cancelling plan');
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('jwt');
+            window.location.href = '/payments';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            getCurrentUser();
+            fetchAllPlans();
+            fetchAllUsers();
+        });
+    </script>
+</body>
+</html>

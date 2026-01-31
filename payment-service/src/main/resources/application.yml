@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/payment_portal
+    username: postgres
+    password: postgres
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+
+square:
+  access-token: YOUR_SQUARE_SANDBOX_TOKEN
+  environment: SANDBOX
+server:
+  port: 8080

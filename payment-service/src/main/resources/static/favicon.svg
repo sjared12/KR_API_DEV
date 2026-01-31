@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- Shield badge: yellow fill, brown border, transparent background -->
+  <path
+    d="M128 20 L210 60 V120 C210 170 178 210 128 236 C78 210 46 170 46 120 V60 Z"
+    fill="#fbbf24"
+    stroke="#8b5a2b"
+    stroke-width="12"
+    stroke-linejoin="round"/>
+</svg>

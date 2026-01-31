@@ -33,12 +33,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
             res.setStatus(429); // Too Many Requests
             return;
         }
-        log.debug("Permit acquired, available permits: {}", permits.availablePermits());
+        // ...existing code...
         try {
             chain.doFilter(req, res);
         } finally {
             permits.release();
-            log.debug("Permit released, available permits: {}", permits.availablePermits());
+            // ...existing code...
         }
     }
 }

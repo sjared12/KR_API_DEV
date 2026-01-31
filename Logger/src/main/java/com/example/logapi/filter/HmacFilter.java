@@ -42,9 +42,8 @@ public class HmacFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws IOException, ServletException {
 
-        log.debug("HmacFilter: enabled={}", enabled);
+        // ...existing code...
         if (!enabled) {
-            log.debug("HMAC verification disabled, skipping");
             chain.doFilter(request, response);
             return;
         }
@@ -64,7 +63,7 @@ public class HmacFilter extends OncePerRequestFilter {
 
         byte[] body = request.getInputStream().readAllBytes();
         String computed = hmac(body);
-        log.debug("Computed HMAC: {}, received signature length: {}", computed.substring(0, Math.min(10, computed.length())) + "...", signature.length());
+        // ...existing code...
 
         if (!MessageDigest.isEqual(signature.getBytes(StandardCharsets.UTF_8), computed.getBytes(StandardCharsets.UTF_8))) {
             log.warn("HMAC signature mismatch");
@@ -72,7 +71,7 @@ public class HmacFilter extends OncePerRequestFilter {
             return;
         }
 
-        log.debug("HMAC signature verified");
+        // ...existing code...
         chain.doFilter(new CachedBodyHttpServletRequest(request, body), response);
     }
 

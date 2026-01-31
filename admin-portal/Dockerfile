@@ -1,11 +1,27 @@
-FROM node:20-alpine
+# syntax=docker/dockerfile:1
+
+# Build stage
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
-COPY package.json .
-RUN npm install --omit=dev
-COPY server.js .
-COPY public /usr/share/admin-portal
-RUN mkdir -p /data
+COPY pom.xml .
+RUN apk add --no-cache maven && \
+    mvn dependency:go-offline -DskipTests
+
+COPY src ./src
+RUN mvn clean package -DskipTests -q
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
 ENV CONFIG_PATH=/data/config.json
-ENV PORT=4000
-EXPOSE 4000
-CMD ["node", "server.js"]
+ENV PORT=8080
+RUN mkdir -p /data && \
+    adduser -D -u 1000 appuser && \
+    chown -R appuser:appuser /data
+
+COPY --from=build /app/target/*.jar app.jar
+RUN chown appuser:appuser /app/app.jar
+
+USER appuser
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]

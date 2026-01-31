@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Apps</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', 'Segoe UI', 'Roboto', Arial, sans-serif;
+      margin: 0;
+      background: #f5f7fa;
+      color: #23263b;
+    }
+    header {
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 1.5rem 2rem 1.2rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.10);
+    }
+    header strong {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+    }
+    main {
+      max-width: 900px;
+      margin: 2.5rem auto;
+      padding: 0 1rem;
+    }
+    h1 {
+      margin-bottom: 0.5rem;
+      font-weight: 700;
+      color: #667eea;
+      letter-spacing: 1px;
+    }
+    .apps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 2rem 1.5rem 1.5rem 1.5rem;
+      box-shadow: 0 8px 32px rgba(102, 126, 234, 0.10), 0 1.5px 6px rgba(118, 75, 162, 0.08);
+      border-top: 5px solid #667eea;
+      transition: box-shadow 0.2s, border-top 0.2s;
+    }
+    .card h3 {
+      margin-top: 0;
+      color: #764ba2;
+      font-weight: 600;
+    }
+    .card p {
+      font-size: 1rem;
+      color: #444;
+    }
+    .card.private {
+      border-top: 5px solid #764ba2;
+    }
+    button {
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.3rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.10);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      background: linear-gradient(90deg, #764ba2, #667eea);
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.18);
+    }
+    button.secondary {
+      background: #374151;
+      color: #fff;
+    }
+    button.secondary:hover {
+      background: #23263b;
+    }
+    .hidden {
+      display: none;
+    }
+    @media (max-width: 700px) {
+      main { padding: 0 0.5rem; }
+      .apps { grid-template-columns: 1fr; }
+      header strong { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>Kenton Ridge Department of Bands Application Portal</strong></div>
+    <div>
+      <button id="loginBtn">Login</button>
+      <button id="logoutBtn" class="secondary hidden">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <h1>Available Apps</h1>
+    <p>Some apps are public. Log in to see everything you have access to.</p>
+
+    <div class="apps">
+      <!-- Public apps -->
+      <div class="card">
+        <h3>Public App A</h3>
+        <p>Accessible to everyone.</p>
+      </div>
+      <div class="card">
+        <h3>Public App B</h3>
+        <p>No login required.</p>
+      </div>
+
+      <!-- Private apps -->
+      <div class="card private hidden">
+        <h3>Internal Dashboard</h3>
+        <p>Only visible after login.</p>
+      </div>
+      <div class="card private hidden">
+        <h3>Admin Tools</h3>
+        <p>Restricted access.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const privateApps = document.querySelectorAll('.private');
+
+    function setLoggedIn(isLoggedIn) {
+      if (isLoggedIn) {
+        privateApps.forEach(a => a.classList.remove('hidden'));
+        loginBtn.classList.add('hidden');
+        logoutBtn.classList.remove('hidden');
+        localStorage.setItem('loggedIn', 'true');
+      } else {
+        privateApps.forEach(a => a.classList.add('hidden'));
+        loginBtn.classList.remove('hidden');
+        logoutBtn.classList.add('hidden');
+        localStorage.removeItem('loggedIn');
+      }
+    }
+
+    loginBtn.addEventListener('click', () => {
+      // Placeholder for real auth (Auth0, SSO, etc.)
+      setLoggedIn(true);
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      setLoggedIn(false);
+    });
+
+    // Persist login state (demo only)
+    if (localStorage.getItem('loggedIn') === 'true') {
+      setLoggedIn(true);
+    }
+  </script>
+</body>
+</html>

@@ -27,9 +27,9 @@ public class PayController {
         return "forward:/subscription-manager.html";
     }
 
-    // Admin Routes - Clean URLs
+    // Admin Routes - Clean URLs (render Thymeleaf template instead of old static file)
     @GetMapping({"/admin", "/admin/", "/admin/plans"})
     public String adminPlans() {
-        return "forward:/admin/plans.html";
+        return "admin-plans";
     }
 }

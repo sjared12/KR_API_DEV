@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Admin Portal base (internal network) and dynamic config fetch
-const ADMIN_PORTAL_URL = process.env.ADMIN_PORTAL_URL || 'http://admin-portal:4000';
+const ADMIN_PORTAL_URL = process.env.ADMIN_PORTAL_URL || 'http://admin-porta;:8080';
 let cachedConfig = { apiEndpoint: process.env.API_ENDPOINT || 'http://api:8080' };
 let lastFetch = 0;
 const TTL_MS = 30_000; // refresh config every 30s
@@ -31,7 +31,7 @@ async function loadConfig(force = false) {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use('/feedback-app', express.static(path.join(__dirname, 'public')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -42,7 +42,7 @@ app.get('/health', (req, res) => {
 app.post('/api/feedback', async (req, res) => {
   try {
     const { apiEndpoint } = await loadConfig();
-    console.log('Received feedback submission:', req.body);
+    // ...existing code...
     
     // Forward to main API
     const response = await axios.post(`${apiEndpoint}/api/feedback`, req.body, {
@@ -50,7 +50,7 @@ app.post('/api/feedback', async (req, res) => {
       timeout: 10000
     });
     
-    console.log('Feedback submitted successfully');
+    // ...existing code...
     res.json(response.data);
   } catch (error) {
     console.error('Error submitting feedback:', error.message);
@@ -81,8 +81,4 @@ app.get(['/', '/survey'], (req, res) => {
 // Start server
 app.listen(PORT, async () => {
   await loadConfig(true);
-  console.log(`Feedback app running on port ${PORT}`);
-  console.log(`Admin portal: ${ADMIN_PORTAL_URL}`);
-  console.log(`API endpoint (dynamic): ${cachedConfig.apiEndpoint}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

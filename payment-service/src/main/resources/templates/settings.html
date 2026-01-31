@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Settings - Payment Portal</title>
+    <link rel="icon" type="image/svg+xml" href="/payments/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f5f7fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+        .main-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .page-header {
+            margin-bottom: 2rem;
+        }
+        .page-header h1 {
+            color: #333;
+            font-weight: 600;
+            margin: 0;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            padding: 1rem;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        .success-message {
+            display: none;
+            color: #155724;
+            padding: 1rem;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+        .settings-section {
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #eee;
+        }
+        .settings-section:last-child {
+            border-bottom: none;
+        }
+        .settings-section h3 {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand"><i class="fas fa-wallet"></i> Payment Portal</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-white" id="userEmail">User</span>
+                <a href="/payments/plans" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+                <button class="btn btn-danger btn-sm" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="main-content">
+            <div class="page-header">
+                <h1><i class="fas fa-cog"></i> Account Settings</h1>
+            </div>
+
+            <!-- Messages -->
+            <div id="successMessage" class="success-message"></div>
+            <div id="errorMessage" class="error-message"></div>
+
+            <!-- Change Password Section -->
+            <div class="settings-section">
+                <h3>Change Password</h3>
+                <form id="passwordForm">
+                    <div class="mb-3">
+                        <label for="currentPassword" class="form-label">Current Password</label>
+                        <input type="password" class="form-control" id="currentPassword" placeholder="Enter your current password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Password</label>
+                        <input type="password" class="form-control" id="newPassword" placeholder="Enter new password (min 6 characters)" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm new password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check"></i> Update Password
+                    </button>
+                </form>
+            </div>
+
+            <!-- Student Management Section -->
+            <div class="settings-section">
+                <h3>My Students</h3>
+                <div id="studentSuccess" class="success-message"></div>
+                <div id="studentError" class="error-message"></div>
+                
+                <!-- Add Student Form -->
+                <div class="card mb-3">
+                    <div class="card-header">Add Student</div>
+                    <div class="card-body">
+                        <form id="addStudentForm">
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <input type="text" id="studentId" class="form-control" placeholder="Student ID" required>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <input type="text" id="studentFirstName" class="form-control" placeholder="First Name">
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <input type="text" id="studentLastName" class="form-control" placeholder="Last Name">
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <button type="submit" class="btn btn-primary w-100">Add</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Students List -->
+                <div class="card">
+                    <div class="card-header">Current Students</div>
+                    <div class="card-body">
+                        <div id="studentsLoading" style="text-align: center; padding: 2rem; display: none;">
+                            <div class="spinner-border text-primary" role="status"></div>
+                        </div>
+                        <table class="table" id="studentsTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>Student ID</th>
+                                    <th>Name</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsBody"></tbody>
+                        </table>
+                        <div id="studentsEmpty" style="text-align: center; padding: 2rem; color: #999; display: none;">
+                            No students added yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Info Section -->
+            <div class="settings-section">
+                <h3>Account Information</h3>
+                <div class="alert alert-info">
+                    <p><strong>Name:</strong> <span id="displayName"></span></p>
+                    <p><strong>Email:</strong> <span id="displayEmail"></span></p>
+                    <p><strong>Role:</strong> <span id="displayRole"></span></p>
+                    <p class="mb-0"><strong>Account Created:</strong> <span id="displayCreated"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let token = localStorage.getItem('jwt');
+
+        // Check authentication
+        function checkAuth() {
+            if (!token) {
+                window.location.href = '/payments';
+                return;
+            }
+        }
+
+        // Get current user
+        async function getCurrentUser() {
+            try {
+                const res = await fetch('api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!res.ok) {
+                    window.location.href = '/payments';
+                    return;
+                }
+                
+                const user = await res.json();
+                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+                document.getElementById('userEmail').textContent = fullName || user.email;
+                document.getElementById('displayName').textContent = fullName || 'N/A';
+                document.getElementById('displayEmail').textContent = user.email;
+                document.getElementById('displayRole').textContent = user.role;
+                document.getElementById('displayCreated').textContent = new Date().toLocaleDateString();
+            } catch (error) {
+                console.error('Error getting user:', error);
+                window.location.href = '/payments';
+            }
+        }
+
+        // Handle password change form
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const oldPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            
+            // Reset messages
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            
+            // Validate passwords match
+            if (newPassword !== confirmPassword) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'New passwords do not match';
+                return;
+            }
+            
+            // Validate password length
+            if (newPassword.length < 6) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Password must be at least 6 characters';
+                return;
+            }
+            
+            try {
+                const res = await fetch('api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        oldPassword,
+                        newPassword
+                    })
+                });
+                
+                if (!res.ok) {
+                    const data = await res.json();
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = data.error || 'Failed to change password';
+                    return;
+                }
+                
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Password changed successfully!';
+                document.getElementById('passwordForm').reset();
+                
+                setTimeout(() => {
+                    successDiv.style.display = 'none';
+                }, 5000);
+            } catch (error) {
+                console.error('Error changing password:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'An error occurred while changing your password';
+            }
+        });
+
+        // Logout
+        // Load students
+        async function loadStudents() {
+            document.getElementById('studentsLoading').style.display = 'block';
+            document.getElementById('studentsTable').style.display = 'none';
+            document.getElementById('studentsEmpty').style.display = 'none';
+
+            try {
+                const res = await fetch('api/students', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Failed to load students');
+                }
+
+                const students = await res.json();
+                displayStudents(students);
+            } catch (error) {
+                console.error('Error loading students:', error);
+                document.getElementById('studentsEmpty').style.display = 'block';
+                document.getElementById('studentsEmpty').textContent = 'Error loading students';
+            } finally {
+                document.getElementById('studentsLoading').style.display = 'none';
+            }
+        }
+
+        function displayStudents(students) {
+            const tbody = document.getElementById('studentsBody');
+            tbody.innerHTML = '';
+
+            if (!students || students.length === 0) {
+                document.getElementById('studentsEmpty').style.display = 'block';
+                document.getElementById('studentsTable').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('studentsTable').style.display = 'table';
+            document.getElementById('studentsEmpty').style.display = 'none';
+
+            students.forEach(student => {
+                const row = document.createElement('tr');
+                const fullName = `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A';
+                
+                row.innerHTML = `
+                    <td>${student.studentId}</td>
+                    <td>${fullName}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeStudent('${student.studentId}')">
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Add student form handler
+        document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const studentId = document.getElementById('studentId').value.trim();
+            const firstName = document.getElementById('studentFirstName').value.trim();
+            const lastName = document.getElementById('studentLastName').value.trim();
+            
+            const errorDiv = document.getElementById('studentError');
+            const successDiv = document.getElementById('studentSuccess');
+            
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            if (!studentId) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Student ID is required';
+                return;
+            }
+
+            try {
+                const res = await fetch('api/students', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ studentId, firstName, lastName })
+                });
+
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('Failed response:', res.status, errorText);
+                    throw new Error(`Failed to add student: ${res.status}`);
+                }
+
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Student added successfully';
+                document.getElementById('studentId').value = '';
+                document.getElementById('studentFirstName').value = '';
+                document.getElementById('studentLastName').value = '';
+                
+                loadStudents();
+                setTimeout(() => { successDiv.style.display = 'none'; }, 3000);
+            } catch (error) {
+                console.error('Error adding student:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Failed to add student';
+            }
+        });
+
+        async function removeStudent(studentId) {
+            if (!confirm('Remove this student from your account?')) {
+                return;
+            }
+
+            const errorDiv = document.getElementById('studentError');
+            const successDiv = document.getElementById('studentSuccess');
+            
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            try {
+                const res = await fetch(`api/students/${studentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    throw new Error('Failed to remove student');
+                }
+
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Student removed successfully';
+                
+                loadStudents();
+                setTimeout(() => { successDiv.style.display = 'none'; }, 3000);
+            } catch (error) {
+                console.error('Error removing student:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Failed to remove student';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('jwt');
+            window.location.href = '/payments';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuth();
+            getCurrentUser();
+            loadStudents();
+        });
+    </script>
+</body>
+</html>

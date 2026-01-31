@@ -1,0 +1,21 @@
+### Maven / Spring Boot ###
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+### IDEs ###
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.vscode/
+
+### OS / misc ###
+.DS_Store
+*.log
+hs_err_pid*
+replay_pid*
+
+### Node/Yarn (if present) ###
+node_modules/
+*.tsbuildinfo
