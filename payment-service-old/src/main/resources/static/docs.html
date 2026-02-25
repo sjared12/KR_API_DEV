@@ -254,6 +254,7 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
 </head>
 <body>
     <div class="header">
@@ -344,17 +345,24 @@
                     
                     // Convert markdown to HTML
                     const html = marked.parse(data.content);
-                    
-                    contentDiv.innerHTML = `
-                        <a href="/subscription-manager" class="back-link">← Back to Dashboard</a>
-                        <div class="markdown-content">${html}</div>
-                    `;
+                    // Clear previous content
+                    contentDiv.innerHTML = '';
+                    const backLink = document.createElement('a');
+                    backLink.href = '/subscription-manager';
+                    backLink.className = 'back-link';
+                    backLink.textContent = '← Back to Dashboard';
+                    contentDiv.appendChild(backLink);
+                    const mdDiv = document.createElement('div');
+                    mdDiv.className = 'markdown-content';
+                    const sanitizedHtml = DOMPurify.sanitize(html);
+                    mdDiv.innerHTML = sanitizedHtml;
+                    contentDiv.appendChild(mdDiv);
                 } else {
-                    contentDiv.innerHTML = `<div class="error">${data.error}</div>`;
+                    contentDiv.textContent = `Error: ${data.error}`;
                 }
             } catch (error) {
                 console.error('Error loading document:', error);
-                contentDiv.innerHTML = '<div class="error">Failed to load document</div>';
+                contentDiv.textContent = 'Failed to load document';
             }
         }
 

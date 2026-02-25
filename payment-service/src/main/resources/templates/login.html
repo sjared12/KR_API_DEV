@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://apps.dev.krhscougarband.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' https://*; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; base-uri 'self'">
+    <title>Checkout Admin Login</title>
+    <link rel="icon" type="image/svg+xml" href="/payments/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .login-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 2.5rem;
+            max-width: 420px;
+            width: 100%;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .login-header h1 {
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .login-header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-label {
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .form-control {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            outline: none;
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 0.85rem;
+            border-radius: 8px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 1.5rem;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .btn-login:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            padding: 0.75rem 1rem;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .success-message {
+            display: none;
+            color: #155724;
+            padding: 0.75rem 1rem;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .footer-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .footer-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer-link a:hover {
+            text-decoration: underline;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+        .loading-spinner i {
+            font-size: 2.5rem;
+            color: #667eea;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-header">
+            <h1><i class="fas fa-shopping-bag"></i> Checkout Admin</h1>
+            <p>Admin Login</p>
+        </div>
+
+        <div id="messages">
+            <div id="errorMessage" class="error-message"></div>
+            <div id="successMessage" class="success-message"></div>
+        </div>
+
+        <div id="loginForm">
+            <form id="adminLoginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" id="email" class="form-control" placeholder="admin@krhscougarband.org" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; align-items: center;">
+                        <input type="checkbox" id="rememberMe" style="width: auto; margin-right: 0.5rem;">
+                        <label for="rememberMe" style="margin: 0; font-weight: normal; cursor: pointer;">
+                            Remember me for 7 days
+                        </label>
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 0.25rem; margin-left: 1.5rem;">
+                        Otherwise, you'll be logged out after 1 hour
+                    </small>
+                </div>
+
+                <button type="submit" class="btn btn-login">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+
+            <div class="footer-link">
+                <a href="/payments/"><i class="fas fa-arrow-left"></i> Back to Home</a>
+            </div>
+        </div>
+
+        <div id="loadingDiv" class="loading-spinner">
+            <i class="fas fa-circle-notch"></i>
+            <p style="margin-top: 1rem; color: #666;">Logging in...</p>
+        </div>
+    </div>
+
+    <script>
+        function getToken() {
+            return localStorage.getItem('AUTH_TOKEN');
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('loadingDiv').style.display = 'block';
+
+            try {
+                const response = await fetch('/payments/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, rememberMe })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Invalid email or password');
+                }
+
+                const data = await response.json();
+                localStorage.setItem('AUTH_TOKEN', data.token);
+                localStorage.setItem('REFRESH_TOKEN', data.refreshToken);
+                localStorage.setItem('TOKEN_EXPIRES_AT', Date.now() + data.expiresIn);
+
+                // Clear all redirect tracking to prevent loops after successful login
+                sessionStorage.removeItem('lastLoginRedirect');
+                sessionStorage.removeItem('lastDashboardRedirect');
+                sessionStorage.removeItem('authRetryCount');
+
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Login successful! Redirecting...';
+
+                setTimeout(() => {
+                    // Check if there's a redirect URL parameter
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const redirect = urlParams.get('redirect') || '/payments/dashboard';
+                    window.location.href = redirect;
+                }, 1500);
+            } catch (error) {
+                console.error('Login failed:', error);
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = error.message || 'Login failed. Please try again.';
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('loadingDiv').style.display = 'none';
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            const token = getToken();
+            
+            // Don't auto-redirect if we're here due to failed auth - let user login manually
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromAuth = urlParams.get('from');
+            
+            if (fromAuth === 'auth_failed') {
+                console.log('Came from failed auth, clearing token and staying on login page');
+                localStorage.removeItem('AUTH_TOKEN');
+                sessionStorage.removeItem('lastLoginRedirect');
+                sessionStorage.removeItem('lastDashboardRedirect');
+                window.history.replaceState({}, document.title, '/payments/login');
+                return;
+            }
+            
+            if (!token) {
+                console.log('No token, staying on login page');
+                return;
+            }
+            
+            // Prevent redirect loop - check timestamps
+            const lastRedirect = sessionStorage.getItem('lastLoginRedirect');
+            const now = Date.now();
+            const timeSinceLastRedirect = lastRedirect ? (now - parseInt(lastRedirect)) : Infinity;
+            
+            // If we redirected less than 3 seconds ago, we're in a loop - stop
+            if (timeSinceLastRedirect < 3000) {
+                console.warn('Redirect loop detected, stopping auto-redirect. Please login manually.');
+                sessionStorage.removeItem('lastLoginRedirect');
+                sessionStorage.removeItem('lastDashboardRedirect');
+                localStorage.removeItem('AUTH_TOKEN');
+                return;
+            }
+            
+            console.log('Token found, attempting redirect to dashboard');
+            // Don't validate - just redirect and let dashboard handle validation
+            sessionStorage.setItem('lastLoginRedirect', now.toString());
+            const redirect = urlParams.get('redirect') || '/payments/dashboard';
+            window.location.href = redirect;
+        });
+    </script>
+</body>
+</html>

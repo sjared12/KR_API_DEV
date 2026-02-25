@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://apps.dev.krhscougarband.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' https://*; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; base-uri 'self'">
     <title>Admin Dashboard - Payment Portal</title>
     <link rel="icon" type="image/svg+xml" href="/payments/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
@@ -171,8 +172,11 @@
             <!-- Sidebar -->
             <div class="col-md-2">
                 <div class="sidebar">
-                    <a href="#" onclick="switchTab('plans')" id="plansTab" class="active"><i class="fas fa-credit-card"></i> Plans</a>
+                    <a href="/payments/admin" target="_self"><i class="fas fa-list"></i> Manage Items</a>
+                    <a href="/payments/admin" target="_self"><i class="fas fa-box"></i> Manage Orders</a>
+                    <a href="#" onclick="switchTab('plans')" id="plansTab" class="active"><i class="fas fa-credit-card"></i> Manage Plans</a>
                     <a href="#" onclick="switchTab('users')" id="usersTab"><i class="fas fa-users"></i> Users</a>
+                    <a href="#" onclick="switchTab('refunds')" id="refundsTab" style="display:none;"><i class="fas fa-undo-alt"></i> Pending Refunds</a>
                     <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
                 </div>
             </div>
@@ -277,6 +281,45 @@
                             <div id="usersNoData" class="no-data" style="display: none;">
                                 <i class="fas fa-inbox" style="font-size: 3rem; color: #ccc;"></i>
                                 <p style="margin-top: 1rem;">No users found</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PENDING REFUNDS TAB -->
+                    <div id="refundsContent" style="display: none;">
+                        <div class="page-header">
+                            <h1><i class="fas fa-undo-alt"></i> Pending Refunds</h1>
+                            <p class="text-muted">Review and approve pending refunds</p>
+                        </div>
+
+                        <!-- Messages -->
+                        <div id="refundsSuccessMessage" class="success-message"></div>
+                        <div id="refundsErrorMessage" class="error-message"></div>
+
+                        <!-- Refunds Table -->
+                        <div class="table-container">
+                            <div id="refundsLoadingSpinner" class="loading" style="display: block;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <table class="table" id="refundsTable" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Plan ID</th>
+                                        <th>Admin Email</th>
+                                        <th>Refund Amount</th>
+                                        <th>Method</th>
+                                        <th>Requested At</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="refundsBody">
+                                </tbody>
+                            </table>
+                            <div id="refundsNoData" class="no-data" style="display: none;">
+                                <i class="fas fa-inbox" style="font-size: 3rem; color: #ccc;"></i>
+                                <p style="margin-top: 1rem;">No pending refunds</p>
                             </div>
                         </div>
                     </div>
@@ -610,34 +653,76 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script>
-                // Show/hide card/check fields based on payment method
-                function togglePaymentFields() {
-                    const method = document.getElementById('paymentMethod').value;
-                    document.getElementById('cardFields').style.display = method === 'CARD' ? 'block' : 'none';
-                    document.getElementById('checkFields').style.display = method === 'CHECK' ? 'block' : 'none';
-                }
-                // Initialize payment fields visibility on page load
-                document.addEventListener('DOMContentLoaded', () => {
-                    togglePaymentFields();
-                });
+        // Global variables
         let allPlans = [];
         let allUsers = [];
         let currentResetUserId = null;
         let currentRoleUserId = null;
         let currentPaymentPlanId = null;
+        let planUsersCache = [];
+        let refundPlanId = null;
+        let refundButtonRef = null;
+        let currentStudentsUserId = null;
 
-        // Get JWT token
+        // Check authentication on page load
+        async function checkAuthentication() {
+            try {
+                const token = localStorage.getItem('AUTH_TOKEN');
+                if (!token) {
+                    window.location.href = '/payments/';
+                    return false;
+                }
+                const response = await fetch('/payments/api/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    // Not authenticated, redirect to login
+                    window.location.href = '/payments/';
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = '/payments/';
+                return false;
+            }
+        }
+
+        // Get token from localStorage
         function getToken() {
-            return localStorage.getItem('jwt');
+            return localStorage.getItem('AUTH_TOKEN');
+        }
+
+        // Fetch wrapper for authenticated requests
+        async function fetchWithAuth(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            const token = getToken();
+            if (token) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+            const response = await fetch(url, options);
+            if (response.status === 401 || response.status === 403) {
+                logout();
+                return Promise.reject('Session expired');
+            }
+            return response;
         }
 
         // Get current user email
         async function getCurrentUser() {
             try {
                 const token = getToken();
-                const res = await fetch('api/auth/me', {
+                if (!token) {
+                    window.location.href = '/payments/';
+                    return;
+                }
+                const res = await fetch('/payments/api/auth/me', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                if (res.status === 401 || res.status === 403) {
+                    window.location.href = '/payments/';
+                    return;
+                }
                 if (res.ok) {
                     const user = await res.json();
                     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
@@ -645,25 +730,38 @@
                 }
             } catch (error) {
                 console.error('Error fetching current user:', error);
+                window.location.href = '/payments/';
             }
+        }
+
+        // Show/hide card/check fields based on payment method
+        function togglePaymentFields() {
+            const method = document.getElementById('paymentMethod').value;
+            document.getElementById('cardFields').style.display = method === 'CARD' ? 'block' : 'none';
+            document.getElementById('checkFields').style.display = method === 'CHECK' ? 'block' : 'none';
         }
 
         // Fetch all plans for admin
         async function fetchAllPlans() {
-            const token = getToken();
-            if (!token) {
-                window.location.href = '/payments';
-                return;
-            }
-
             try {
                 document.getElementById('loadingSpinner').style.display = 'block';
                 document.getElementById('plansTable').style.display = 'none';
                 document.getElementById('noData').style.display = 'none';
 
-                const res = await fetch('api/admin/plans', {
+                const token = getToken();
+                if (!token) {
+                    window.location.href = '/payments/';
+                    return;
+                }
+
+                const res = await fetch('/payments/api/admin/plans', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+
+                if (res.status === 401 || res.status === 403) {
+                    window.location.href = '/payments/';
+                    return;
+                }
 
                 if (!res.ok) {
                     showError('Failed to fetch plans. You may not have admin access.');
@@ -678,6 +776,28 @@
             } finally {
                 document.getElementById('loadingSpinner').style.display = 'none';
             }
+        }
+
+        // Open refund modal
+        function openRefundModal(planId, maxAmount, paymentMethod, buttonRef) {
+            refundPlanId = planId;
+            refundButtonRef = buttonRef;
+            const modal = new bootstrap.Modal(document.getElementById('refundModal'));
+            document.getElementById('refundAmount').value = '';
+            document.getElementById('refundMax').textContent = `\$${(Number(maxAmount)/100).toFixed(2)}`;
+            document.getElementById('refundAmount').max = (Number(maxAmount)/100).toFixed(2);
+            document.getElementById('refundMethod').value = paymentMethod;
+            document.getElementById('refundMethodNote').textContent = '';
+            document.getElementById('refundError').style.display = 'none';
+            // If original method is CASH, force refund as CHECK
+            if (paymentMethod === 'CASH') {
+                document.getElementById('refundMethod').value = 'CHECK';
+                document.getElementById('refundMethod').disabled = true;
+                document.getElementById('refundMethodNote').textContent = 'Cash payments must be refunded by check after approval.';
+            } else {
+                document.getElementById('refundMethod').disabled = false;
+            }
+            modal.show();
         }
 
         // Display plans in table
@@ -709,9 +829,9 @@
                 row.innerHTML = `
                     <td>${plan.userEmail || 'N/A'}</td>
                     <td>${studentDisplay}</td>
-                    <td>$${(plan.amount / 100).toFixed(2)}</td>
+                    <td>\$${(plan.amount / 100).toFixed(2)}</td>
                     <td>
-                        <div class="d-flex justify-content-between small"><span>$${amountPaid}</span><span>$${totalOwed}</span></div>
+                        <div class="d-flex justify-content-between small"><span>\$${amountPaid}</span><span>\$${totalOwed}</span></div>
                         <div class="progress" style="height: 6px;">
                             <div class="progress-bar" role="progressbar" style="width: ${progressPercent}%;" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
@@ -725,113 +845,6 @@
                         <button class="btn-refund" onclick="openRefundModal('${plan.id}', '${plan.amountPaid}', '${plan.paymentMethod}', this)" ${plan.status === 'CANCELLED' ? 'disabled' : ''}>
                             Refund
                         </button>
-                            <!-- Refund Modal -->
-                            <div class="modal fade" id="refundModal" tabindex="-1" aria-labelledby="refundModalLabel" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title" id="refundModalLabel">Refund Payment</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <form id="refundForm">
-                                                <div class="mb-3">
-                                                    <label for="refundAmount" class="form-label">Refund Amount</label>
-                                                    <input type="number" class="form-control" id="refundAmount" min="0.01" step="0.01" required>
-                                                    <div class="form-text">Max: <span id="refundMax"></span></div>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label for="refundMethod" class="form-label">Refund Method</label>
-                                                    <select class="form-select" id="refundMethod" required>
-                                                        <option value="">Select method</option>
-                                                        <option value="CARD">Card</option>
-                                                        <option value="CASH">Cash</option>
-                                                        <option value="CHECK">Check</option>
-                                                    </select>
-                                                    <div class="form-text" id="refundMethodNote"></div>
-                                                </div>
-                                            </form>
-                                            <div id="refundError" class="error-message" style="display:none;"></div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="button" class="btn btn-danger" id="confirmRefundBtn">Refund</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            // Open refund modal
-                            let refundPlanId = null;
-                            let refundButtonRef = null;
-                            function openRefundModal(planId, maxAmount, paymentMethod, buttonRef) {
-                                refundPlanId = planId;
-                                refundButtonRef = buttonRef;
-                                const modal = new bootstrap.Modal(document.getElementById('refundModal'));
-                                document.getElementById('refundAmount').value = '';
-                                document.getElementById('refundMax').textContent = `$${(Number(maxAmount)/100).toFixed(2)}`;
-                                document.getElementById('refundAmount').max = (Number(maxAmount)/100).toFixed(2);
-                                document.getElementById('refundMethod').value = paymentMethod;
-                                document.getElementById('refundMethodNote').textContent = '';
-                                document.getElementById('refundError').style.display = 'none';
-                                // If original method is CASH, force refund as CHECK
-                                if (paymentMethod === 'CASH') {
-                                    document.getElementById('refundMethod').value = 'CHECK';
-                                    document.getElementById('refundMethod').disabled = true;
-                                    document.getElementById('refundMethodNote').textContent = 'Cash payments must be refunded by check after approval.';
-                                } else {
-                                    document.getElementById('refundMethod').disabled = false;
-                                }
-                                modal.show();
-                            }
-
-                            document.getElementById('confirmRefundBtn').addEventListener('click', async function() {
-                                const token = getToken();
-                                if (!token) {
-                                    window.location.href = '/payments';
-                                    return;
-                                }
-                                const amount = parseFloat(document.getElementById('refundAmount').value);
-                                const maxAmount = parseFloat(document.getElementById('refundAmount').max);
-                                const method = document.getElementById('refundMethod').value;
-                                const errorDiv = document.getElementById('refundError');
-                                errorDiv.style.display = 'none';
-                                if (!amount || amount <= 0 || amount > maxAmount) {
-                                    errorDiv.textContent = 'Enter a valid refund amount.';
-                                    errorDiv.style.display = 'block';
-                                    return;
-                                }
-                                if (!method) {
-                                    errorDiv.textContent = 'Select a refund method.';
-                                    errorDiv.style.display = 'block';
-                                    return;
-                                }
-                                refundButtonRef.disabled = true;
-                                try {
-                                    const res = await fetch(`api/admin/plans/${refundPlanId}/refund`, {
-                                        method: 'POST',
-                                        headers: {
-                                            'Authorization': `Bearer ${token}`,
-                                            'Content-Type': 'application/json'
-                                        },
-                                        body: JSON.stringify({ amount: Math.round(amount * 100), method })
-                                    });
-                                    if (!res.ok) {
-                                        errorDiv.textContent = 'Failed to refund plan.';
-                                        errorDiv.style.display = 'block';
-                                        refundButtonRef.disabled = false;
-                                        return;
-                                    }
-                                    showSuccess('Plan refunded successfully');
-                                    bootstrap.Modal.getInstance(document.getElementById('refundModal')).hide();
-                                    setTimeout(() => {
-                                        fetchAllPlans();
-                                    }, 1000);
-                                } catch (error) {
-                                    errorDiv.textContent = 'An error occurred while refunding the plan.';
-                                    errorDiv.style.display = 'block';
-                                    refundButtonRef.disabled = false;
-                                }
-                            });
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -862,17 +875,6 @@
             });
             displayPlans(filtered);
         }
-
-            // ...existing code...
-            const method = document.getElementById('paymentMethod').value;
-            if (method === 'CHECK') {
-                const checkNumber = document.getElementById('adminCheckNumber').value.trim();
-                if (!checkNumber) {
-                    showError('Check number is required for check payments.');
-                    return;
-                }
-                // Add checkNumber to payment payload here
-            }
 
         // Show success message
         function showSuccess(message) {
@@ -918,16 +920,18 @@
         function switchTab(tab) {
             const plansContent = document.getElementById('plansContent');
             const usersContent = document.getElementById('usersContent');
+            const refundsContent = document.getElementById('refundsContent');
             const plansTab = document.getElementById('plansTab');
             const usersTab = document.getElementById('usersTab');
-
-            // ...existing code...
+            const refundsTab = document.getElementById('refundsTab');
 
             if (tab === 'plans') {
                 plansContent.style.display = 'block';
                 usersContent.style.display = 'none';
+                refundsContent.style.display = 'none';
                 plansTab.classList.add('active');
                 usersTab.classList.remove('active');
+                if (refundsTab) refundsTab.classList.remove('active');
                 // Load users for search in plan creation
                 if (allUsers.length === 0) {
                     fetchAllUsers();
@@ -935,28 +939,30 @@
             } else if (tab === 'users') {
                 plansContent.style.display = 'none';
                 usersContent.style.display = 'block';
+                refundsContent.style.display = 'none';
                 plansTab.classList.remove('active');
                 usersTab.classList.add('active');
+                if (refundsTab) refundsTab.classList.remove('active');
                 fetchAllUsers();
+            } else if (tab === 'refunds') {
+                plansContent.style.display = 'none';
+                usersContent.style.display = 'none';
+                refundsContent.style.display = 'block';
+                plansTab.classList.remove('active');
+                usersTab.classList.remove('active');
+                if (refundsTab) refundsTab.classList.add('active');
+                fetchPendingRefunds();
             }
         }
 
         // Fetch all users
         async function fetchAllUsers() {
-            const token = getToken();
-            if (!token) {
-                window.location.href = '/payments';
-                return;
-            }
-
             try {
                 document.getElementById('usersLoadingSpinner').style.display = 'block';
                 document.getElementById('usersTable').style.display = 'none';
                 document.getElementById('usersNoData').style.display = 'none';
 
-                const res = await fetch('api/admin/users', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await fetchWithAuth('/payments/api/admin/users');
 
                 if (!res.ok) {
                     document.getElementById('usersLoadingSpinner').style.display = 'none';
@@ -984,7 +990,6 @@
             const usersNoData = document.getElementById('usersNoData');
             const usersLoadingSpinner = document.getElementById('usersLoadingSpinner');
             
-            // ...existing code...
             tbody.innerHTML = '';
 
             if (!users || users.length === 0) {
@@ -1053,7 +1058,6 @@
                 row.appendChild(actionsCell);
                 tbody.appendChild(row);
             });
-            // ...existing code...
         }
 
         // Filter users by search term
@@ -1086,86 +1090,6 @@
             modal.show();
         }
 
-        // Reset user password
-        document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
-            const newPassword = document.getElementById('newPassword').value.trim();
-            const errorDiv = document.getElementById('resetError');
-
-            if (!newPassword || newPassword.length < 6) {
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'Password must be at least 6 characters';
-                return;
-            }
-
-            const token = getToken();
-            if (!token) {
-                window.location.href = '/payments';
-                return;
-            }
-
-            try {
-                const res = await fetch(`api/admin/users/${currentResetUserId}/reset-password`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ password: newPassword })
-                });
-
-                if (!res.ok) {
-                    errorDiv.style.display = 'block';
-                    errorDiv.textContent = 'Failed to reset password';
-                    return;
-                }
-
-                showUserSuccess('Password reset successfully');
-                bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
-                fetchAllUsers();
-            } catch (error) {
-                console.error('Error resetting password:', error);
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'An error occurred while resetting the password';
-            }
-        });
-
-        // Change user role
-        document.getElementById('changeRoleBtn').addEventListener('click', async () => {
-            const newRole = document.getElementById('userRole').value;
-            const errorDiv = document.getElementById('roleError');
-            const token = getToken();
-
-            if (!token) {
-                window.location.href = '/payments';
-                return;
-            }
-
-            try {
-                const res = await fetch(`api/admin/users/${currentRoleUserId}/role`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ role: newRole })
-                });
-
-                if (!res.ok) {
-                    errorDiv.style.display = 'block';
-                    errorDiv.textContent = 'Failed to change role';
-                    return;
-                }
-
-                showUserSuccess(`Role updated to ${newRole} successfully`);
-                bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
-                fetchAllUsers();
-            } catch (error) {
-                console.error('Error changing role:', error);
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'An error occurred while changing the role';
-            }
-        });
-
         // Open create plan modal
         function openCreatePlanModal() {
             document.getElementById('planUserSearch').value = '';
@@ -1181,7 +1105,6 @@
         }
 
         // Search for users to assign plan to
-        let planUsersCache = [];
         async function searchPlanUsers() {
             const searchTerm = document.getElementById('planUserSearch').value.toLowerCase().trim();
             const resultsDiv = document.getElementById('planUserResults');
@@ -1222,9 +1145,8 @@
         // Load students for selected user
         async function loadStudentsForUser(userId) {
             try {
-                const token = getToken();
-                const res = await fetch(`api/students/user/${userId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await fetch(`/payments/api/students/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
                 
                 if (!res.ok) {
@@ -1241,144 +1163,18 @@
                 }
                 
                 // Add students
-                plans.forEach(plan => {
-                    const row = document.createElement('tr');
-                    const startDate = new Date(plan.startDate).toLocaleDateString();
-                    const studentDisplay = plan.studentName ? `${plan.studentName} (#${plan.studentId})` : 'No student assigned';
-                    const amountCents = Number(plan.amount) || 0;
-                    const totalOwedCents = Number(plan.totalOwed) || amountCents;
-                    const amountPaidCents = Number(plan.amountPaid) || 0;
-                    const totalOwed = (totalOwedCents / 100).toFixed(2);
-                    const amountPaid = (amountPaidCents / 100).toFixed(2);
-                    const progressPercent = totalOwedCents > 0 ? Math.min(100, Math.round((amountPaidCents / totalOwedCents) * 100)) : 0;
-                    const statusBadge = renderStatusBadge(plan.status);
-                    let actionButtons = `
-                        <button class="btn btn-sm btn-primary" onclick="openPaymentModal('${plan.id}')">
-                            <i class="fas fa-eye"></i> View Details
-                        </button>
-                        <button class="btn-refund" onclick="openRefundModal('${plan.id}', '${plan.amountPaid}', '${plan.paymentMethod}', this)" ${plan.status === 'CANCELLED' ? 'disabled' : ''}>
-                            Refund
-                        </button>
-                    `;
-                    if (plan.status === 'CANCELLED') {
-                        actionButtons += `
-                            <button class="btn btn-success ms-2" onclick="reactivatePlan('${plan.id}', this)">
-                                <i class="fas fa-redo"></i> Re-enable
-                            </button>
-                        `;
-                    }
-                    row.innerHTML = `
-                        <td>${plan.userEmail || 'N/A'}</td>
-                        <td>${studentDisplay}</td>
-                        <td>$${(plan.amount / 100).toFixed(2)}</td>
-                        <td>
-                            <div class="d-flex justify-content-between small"><span>$${amountPaid}</span><span>$${totalOwed}</span></div>
-                            <div class="progress" style="height: 6px;">
-                                <div class="progress-bar" role="progressbar" style="width: ${progressPercent}%;" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100"></div>
-                            </div>
-                        </td>
-                        <td>${statusBadge}</td>
-                        <td>${startDate}</td>
-                        <td>
-                            ${actionButtons}
-                            <!-- ...existing code for refund modal... -->
-                        </td>
-                    `;
-                    tbody.appendChild(row);
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.studentId;
+                    option.textContent = `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.studentId;
+                    select.appendChild(option);
                 });
-                        // Reactivate cancelled plan
-                        async function reactivatePlan(planId, button) {
-                            const token = getToken();
-                            if (!token) {
-                                window.location.href = '/payments';
-                                return;
-                            }
-                            button.disabled = true;
-                            try {
-                                const res = await fetch(`api/admin/plans/${planId}/reactivate`, {
-                                    method: 'POST',
-                                    headers: { 'Authorization': `Bearer ${token}' } }
-                                });
-                                if (!res.ok) {
-                                    showError('Failed to re-enable plan');
-                                    button.disabled = false;
-                                    return;
-                                }
-                                showSuccess('Plan re-enabled successfully');
-                                setTimeout(() => {
-                                    fetchAllPlans();
-                                }, 1000);
-                            } catch (error) {
-                                console.error('Error re-enabling plan:', error);
-                                showError('An error occurred while re-enabling the plan');
-                                button.disabled = false;
-                            }
-                        }
-                errorDiv.textContent = 'Valid amount per instance is required';
-                return;
-            }
-
-            if (parseFloat(amountPerInstance) > parseFloat(totalOwed)) {
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'Amount per instance cannot exceed total owed';
-                return;
-            }
-
-            if (!frequency) {
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'Please select a frequency';
-                return;
-            }
-
-            if (!token) {
-                window.location.href = '/payments';
-                return;
-            }
-
-            try {
-                // Convert dollars to cents for the API
-                const amountInCents = Math.round(parseFloat(amountPerInstance) * 100);
-                const totalOwedInCents = Math.round(parseFloat(totalOwed) * 100);
-
-                const body = {
-                    amount: amountInCents,
-                    totalOwed: totalOwedInCents,
-                    frequency,
-                    currency: 'USD'
-                };
-                
-                // Add studentId if selected
-                if (studentId) {
-                    body.studentId = studentId;
-                }
-
-                const res = await fetch(`api/users/${userId}/plans`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(body)
-                });
-
-                if (!res.ok) {
-                    errorDiv.style.display = 'block';
-                    errorDiv.textContent = 'Failed to create plan';
-                    return;
-                }
-
-                showSuccess('Plan created successfully');
-                bootstrap.Modal.getInstance(document.getElementById('createPlanModal')).hide();
-                fetchAllPlans();
             } catch (error) {
-                console.error('Error creating plan:', error);
-                errorDiv.style.display = 'block';
-                errorDiv.textContent = 'An error occurred while creating the plan';
+                console.error('Error loading students:', error);
             }
-        });
+        }
 
         // View and manage students for a user
-        let currentStudentsUserId = null;
         async function viewUserStudents(userId, email) {
             currentStudentsUserId = userId;
             document.getElementById('studentsUserEmail').textContent = `Students for: ${email}`;
@@ -1395,14 +1191,13 @@
         }
 
         async function loadUserStudents(userId) {
-            const token = getToken();
             document.getElementById('studentsListLoading').style.display = 'block';
             document.getElementById('studentsListTable').style.display = 'none';
             document.getElementById('studentsListEmpty').style.display = 'none';
 
             try {
-                const res = await fetch(`api/students/user/${userId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await fetch(`/payments/api/students/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (!res.ok) {
@@ -1456,7 +1251,6 @@
             const lastName = document.getElementById('newStudentLastName').value.trim();
             const errorDiv = document.getElementById('studentsError');
             const successDiv = document.getElementById('studentsSuccess');
-            const token = getToken();
 
             errorDiv.style.display = 'none';
             successDiv.style.display = 'none';
@@ -1468,11 +1262,11 @@
             }
 
             try {
-                const res = await fetch(`api/students/user/${currentStudentsUserId}`, {
+                const res = await fetch(`/payments/api/students/user/${currentStudentsUserId}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${getToken()}`
                     },
                     body: JSON.stringify({ studentId, firstName, lastName })
                 });
@@ -1501,7 +1295,6 @@
                 return;
             }
 
-            const token = getToken();
             const errorDiv = document.getElementById('studentsError');
             const successDiv = document.getElementById('studentsSuccess');
 
@@ -1509,9 +1302,9 @@
             successDiv.style.display = 'none';
 
             try {
-                const res = await fetch(`api/students/user/${currentStudentsUserId}/${studentId}`, {
+                const res = await fetch(`/payments/api/students/user/${currentStudentsUserId}/${studentId}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (!res.ok) {
@@ -1589,7 +1382,11 @@
 
         async function getCurrentUserData() {
             const token = getToken();
-            const res = await fetch('api/auth/me', {
+            if (!token) {
+                window.location.href = '/payments/';
+                return null;
+            }
+            const res = await fetch('/payments/api/auth/me', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
@@ -1599,10 +1396,9 @@
         }
 
         async function loadPaymentHistory(planId) {
-            const token = getToken();
             try {
-                const res = await fetch(`api/payments/plan/${planId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await fetch(`/payments/api/payments/plan/${planId}`, {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (!res.ok) {
@@ -1630,7 +1426,7 @@
                     <div class="list-group-item">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <p class="mb-0"><strong>$${(payment.amount / 100).toFixed(2)}</strong></p>
+                                <p class="mb-0"><strong>\$${(payment.amount / 100).toFixed(2)}</strong></p>
                                 <small class="text-muted">${payment.paymentMethod || 'Card'}${extraInfo}</small>
                             </div>
                             <div class="text-end">
@@ -1648,10 +1444,9 @@
         }
 
         async function loadCardInfo(planId) {
-            const token = getToken();
             try {
-                const res = await fetch(`api/payments/plan/${planId}/card`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                const res = await fetch(`/payments/api/payments/plan/${planId}/card`, {
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (res.ok) {
@@ -1666,7 +1461,6 @@
         }
 
         async function updateCardInfo() {
-            const token = getToken();
             const planId = currentPaymentPlanId;
 
             const cardData = {
@@ -1676,11 +1470,11 @@
             };
 
             try {
-                const res = await fetch(`api/payments/plan/${planId}/card`, {
+                const res = await fetch(`/payments/api/payments/plan/${planId}/card`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
                     },
                     body: JSON.stringify(cardData)
                 });
@@ -1699,7 +1493,6 @@
         }
 
         async function addPayment() {
-            const token = getToken();
             const planId = currentPaymentPlanId;
             const amount = document.getElementById('paymentAmount').value;
             const paymentMethod = document.getElementById('paymentMethod').value;
@@ -1718,14 +1511,14 @@
             try {
                 // Use admin endpoint for cash payments if payment method is CASH
                 const endpoint = paymentMethod === 'CASH' ? 
-                    `api/payments/admin/plan/${planId}/cash` : 
-                    `api/payments/plan/${planId}`;
+                    `/payments/api/payments/admin/plan/${planId}/cash` : 
+                    `/payments/api/payments/plan/${planId}`;
 
                 const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
                     },
                     body: JSON.stringify(paymentData)
                 });
@@ -1763,16 +1556,15 @@
         }
 
         async function updatePlanFrequency() {
-            const token = getToken();
             const planId = currentPaymentPlanId;
             const frequency = document.getElementById('planFrequencyUpdate').value;
 
             try {
-                const res = await fetch(`api/plans/${planId}/frequency`, {
+                const res = await fetch(`/payments/api/plans/${planId}/frequency`, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
                     },
                     body: JSON.stringify({ frequency: frequency })
                 });
@@ -1791,7 +1583,6 @@
         }
 
         async function cancelPlanFromModal() {
-            const token = getToken();
             const planId = currentPaymentPlanId;
             const plan = allPlans.find(p => p.id === planId);
 
@@ -1810,9 +1601,9 @@
             }
 
             try {
-                const res = await fetch(`api/plans/${planId}`, {
+                const res = await fetch(`/payments/api/plans/${planId}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${getToken()}` }
                 });
 
                 if (res.ok) {
@@ -1833,12 +1624,144 @@
 
         // Logout
         function logout() {
-            localStorage.removeItem('jwt');
-            window.location.href = '/payments';
+            localStorage.removeItem('AUTH_TOKEN');
+            window.location.href = '/payments/login';
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', () => {
+        // Initialize page
+        function initializePage() {
+            // Initialize payment fields visibility
+            if (document.getElementById('paymentMethod')) {
+                togglePaymentFields();
+            }
+
+            // Setup event listeners
+            const confirmRefundBtn = document.getElementById('confirmRefundBtn');
+            if (confirmRefundBtn) {
+                confirmRefundBtn.addEventListener('click', async function() {
+                    const amount = parseFloat(document.getElementById('refundAmount').value);
+                    const maxAmount = parseFloat(document.getElementById('refundAmount').max);
+                    const method = document.getElementById('refundMethod').value;
+                    const errorDiv = document.getElementById('refundError');
+                    errorDiv.style.display = 'none';
+                    if (!amount || amount <= 0 || amount > maxAmount) {
+                        errorDiv.textContent = 'Enter a valid refund amount.';
+                        errorDiv.style.display = 'block';
+                        return;
+                    }
+                    if (!method) {
+                        errorDiv.textContent = 'Select a refund method.';
+                        errorDiv.style.display = 'block';
+                        return;
+                    }
+                    refundButtonRef.disabled = true;
+                    try {
+                        const res = await fetch(`/payments/api/admin/plans/${refundPlanId}/refund`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${getToken()}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ amount: Math.round(amount * 100), method })
+                        });
+                        if (!res.ok) {
+                            errorDiv.textContent = 'Failed to refund plan.';
+                            errorDiv.style.display = 'block';
+                            refundButtonRef.disabled = false;
+                            return;
+                        }
+                        showSuccess('Plan refunded successfully');
+                        bootstrap.Modal.getInstance(document.getElementById('refundModal')).hide();
+                        setTimeout(() => {
+                            fetchAllPlans();
+                        }, 1000);
+                    } catch (error) {
+                        errorDiv.textContent = 'An error occurred while refunding the plan.';
+                        errorDiv.style.display = 'block';
+                        refundButtonRef.disabled = false;
+                    }
+                });
+            }
+
+            const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+            if (resetPasswordBtn) {
+                resetPasswordBtn.addEventListener('click', async () => {
+                    const newPassword = document.getElementById('newPassword').value.trim();
+                    const errorDiv = document.getElementById('resetError');
+
+                    if (!newPassword || newPassword.length < 6) {
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = 'Password must be at least 6 characters';
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch(`/payments/api/admin/users/${currentResetUserId}/reset-password`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${getToken()}`
+                            },
+                            body: JSON.stringify({ password: newPassword })
+                        });
+
+                        if (!res.ok) {
+                            errorDiv.style.display = 'block';
+                            errorDiv.textContent = 'Failed to reset password';
+                            return;
+                        }
+
+                        showUserSuccess('Password reset successfully');
+                        bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+                        fetchAllUsers();
+                    } catch (error) {
+                        console.error('Error resetting password:', error);
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = 'An error occurred while resetting the password';
+                    }
+                });
+            }
+
+            const changeRoleBtn = document.getElementById('changeRoleBtn');
+            if (changeRoleBtn) {
+                changeRoleBtn.addEventListener('click', async () => {
+                    const newRole = document.getElementById('userRole').value;
+                    const errorDiv = document.getElementById('roleError');
+
+                    try {
+                        const res = await fetch(`/payments/api/admin/users/${currentRoleUserId}/role`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${getToken()}`
+                            },
+                            body: JSON.stringify({ role: newRole })
+                        });
+
+                        if (!res.ok) {
+                            errorDiv.style.display = 'block';
+                            errorDiv.textContent = 'Failed to change role';
+                            return;
+                        }
+
+                        showUserSuccess(`Role updated to ${newRole} successfully`);
+                        bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+                        fetchAllUsers();
+                    } catch (error) {
+                        console.error('Error changing role:', error);
+                        errorDiv.style.display = 'block';
+                        errorDiv.textContent = 'An error occurred while changing the role';
+                    }
+                });
+            }
+        }
+
+        // Run auth check immediately
+        checkAuthentication().then(isAuthenticated => {
+            if (!isAuthenticated) return;
+            // Continue with page initialization
+            initializePage();
+            // Fetch initial data
             getCurrentUser();
             fetchAllPlans();
             fetchAllUsers();

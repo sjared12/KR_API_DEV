@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://apps.dev.krhscougarband.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' https://*; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; base-uri 'self'">
+    <title>Admin Dashboard - Checkout</title>
+    <link rel="icon" type="image/svg+xml" href="/payments/favicon.svg">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f5f7fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+        .sidebar {
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            min-height: calc(100vh - 60px);
+        }
+        .sidebar a {
+            display: block;
+            padding: 12px 20px;
+            color: #666;
+            text-decoration: none;
+            border-left: 4px solid transparent;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: #f0f0f0;
+            border-left-color: #667eea;
+            color: #667eea;
+        }
+        .main-content {
+            padding: 2rem;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        .badge-success { background-color: #28a745; }
+        .badge-pending { background-color: #ffc107; }
+        .badge-cancelled { background-color: #dc3545; }
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/payments/admin">
+                <i class="fas fa-shopping-bag"></i> Checkout Admin
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="ms-auto">
+                    <span class="text-white me-3" id="userName">Welcome</span>
+                    <button class="btn btn-light btn-sm" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row" style="min-height: calc(100vh - 60px);">
+            <div class="col-md-3 sidebar">
+                <a href="#" onclick="showTab('items')" class="active">
+                    <i class="fas fa-list"></i> Manage Items
+                </a>
+                <a href="#" onclick="showTab('orders')">
+                    <i class="fas fa-box"></i> Manage Orders
+                </a>
+                <a href="#" onclick="showTab('plans')">
+                    <i class="fas fa-credit-card"></i> Manage Plans
+                </a>
+                <a href="#" onclick="showTab('users')">
+                    <i class="fas fa-users"></i> Users
+                </a>
+            </div>
+
+            <div class="col-md-9 main-content">
+                <!-- Items Tab -->
+                <div id="items-tab" class="tab-content">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Manage Items</h2>
+                        <button class="btn btn-primary" onclick="openAddItemModal()">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="itemsLoading" style="display: none;" class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p>Loading items...</p>
+                            </div>
+                            <table id="itemsTable" class="table table-hover" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Item Name</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Stock</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="itemsBody"></tbody>
+                            </table>
+                            <div id="itemsEmpty" style="display: none;" class="alert alert-info">
+                                No items found. Create one to get started!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Orders Tab -->
+                <div id="orders-tab" class="tab-content" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Manage Orders</h2>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="ordersLoading" style="display: none;" class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p>Loading orders...</p>
+                            </div>
+                            <table id="ordersTable" class="table table-hover" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>User</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ordersBody"></tbody>
+                            </table>
+                            <div id="ordersEmpty" style="display: none;" class="alert alert-info">
+                                No orders found.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plans Tab -->
+                <div id="plans-tab" class="tab-content" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>Manage Plans</h2>
+                        <button class="btn btn-primary" onclick="openCreatePlanModal()">
+                            <i class="fas fa-plus"></i> Create Plan
+                        </button>
+                    </div>
+
+                    <div id="plansSuccessMessage" class="alert alert-success" style="display: none;"></div>
+                    <div id="plansErrorMessage" class="alert alert-danger" style="display: none;"></div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <input type="text" id="plansSearchInput" class="form-control" placeholder="Search by customer email or ID..." onkeyup="filterPlans()">
+                            </div>
+                            <div id="plansLoading" style="display: none;" class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p>Loading plans...</p>
+                            </div>
+                            <table id="plansTable" class="table table-hover" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Customer Email</th>
+                                        <th>Student</th>
+                                        <th>Amount</th>
+                                        <th>Progress</th>
+                                        <th>Status</th>
+                                        <th>Start Date</th>
+                                        <th>Next Charge</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plansBody"></tbody>
+                            </table>
+                            <div id="plansEmpty" style="display: none;" class="alert alert-info">
+                                No plans found.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Tab -->
+                <div id="users-tab" class="tab-content" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2>User Management</h2>
+                    </div>
+
+                    <div id="usersSuccessMessage" class="alert alert-success" style="display: none;"></div>
+                    <div id="usersErrorMessage" class="alert alert-danger" style="display: none;"></div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <input type="text" id="userSearchInput" class="form-control" placeholder="Search by email..." onkeyup="filterUsers()">
+                            </div>
+                            <div id="usersLoading" style="display: none;" class="text-center">
+                                <div class="spinner-border" role="status"></div>
+                                <p>Loading users...</p>
+                            </div>
+                            <table id="usersTable" class="table table-hover" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Students</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersBody"></tbody>
+                            </table>
+                            <div id="usersEmpty" style="display: none;" class="alert alert-info">
+                                No users found.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Item Modal -->
+    <div class="modal fade" id="itemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="itemModalTitle">Add Item</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="itemError" style="display: none;" class="alert alert-danger"></div>
+                    <div class="mb-3">
+                        <label for="itemName" class="form-label">Item Name</label>
+                        <input type="text" id="itemName" class="form-control" placeholder="e.g., Instrument Case">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemCategory" class="form-label">Category</label>
+                        <input type="text" id="itemCategory" class="form-control" placeholder="e.g., Accessories">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemPrice" class="form-label">Price ($)</label>
+                        <input type="number" id="itemPrice" class="form-control" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemStock" class="form-label">Stock Quantity</label>
+                        <input type="number" id="itemStock" class="form-control" placeholder="0" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemDescription" class="form-label">Description</label>
+                        <textarea id="itemDescription" class="form-control" rows="3" placeholder="Item description"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveItem()">Save Item</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset Password Modal -->
+    <div class="modal fade" id="resetPasswordModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reset User Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="resetError" class="alert alert-danger" style="display: none;"></div>
+                    <p id="resetUserEmail" style="margin-bottom: 1rem; font-weight: 500;"></p>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">New Password</label>
+                        <input type="password" id="newPassword" class="form-control" placeholder="Enter new password (min 6 characters)" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="resetPasswordBtn">Reset Password</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Role Modal -->
+    <div class="modal fade" id="changeRoleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Change User Role</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="roleError" class="alert alert-danger" style="display: none;"></div>
+                    <p id="changeRoleUserEmail" style="margin-bottom: 1rem; font-weight: 500;"></p>
+                    <div class="mb-3">
+                        <label for="userRole" class="form-label">Select Role</label>
+                        <select id="userRole" class="form-select">
+                            <option value="USER">User</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="REFUND_APPROVER">Refund Approver</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="changeRoleBtn">Change Role</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students Modal -->
+    <div class="modal fade" id="studentsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Manage Students</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="studentsError" class="alert alert-danger" style="display: none;"></div>
+                    <div id="studentsSuccess" class="alert alert-success" style="display: none;"></div>
+                    
+                    <p id="studentsUserEmail" style="margin-bottom: 1.5rem; font-weight: 500;"></p>
+                    
+                    <!-- Add Student Form -->
+                    <div class="card mb-3">
+                        <div class="card-header">Add Student</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 mb-2">
+                                    <input type="text" id="newStudentId" class="form-control" placeholder="Student ID" required>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <input type="text" id="newStudentFirstName" class="form-control" placeholder="First Name" required>
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <input type="text" id="newStudentLastName" class="form-control" placeholder="Last Name" required>
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <button class="btn btn-primary w-100" onclick="addStudentToUser()">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Students List -->
+                    <div class="card">
+                        <div class="card-header">Current Students</div>
+                        <div class="card-body">
+                            <div id="studentsListLoading" style="text-align: center; padding: 2rem; display: none;">
+                                <div class="spinner-border text-primary" role="status"></div>
+                            </div>
+                            <table class="table" id="studentsListTable" style="display: none;">
+                                <thead>
+                                    <tr>
+                                        <th>Student ID</th>
+                                        <th>Name</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsListBody"></tbody>
+                            </table>
+                            <div id="studentsListEmpty" style="text-align: center; padding: 2rem; color: #999; display: none;">
+                                No students added yet
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Plan Modal -->
+    <div class="modal fade" id="createPlanModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Payment Plan</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="createPlanError" class="alert alert-danger" style="display: none;"></div>
+                    
+                    <!-- User Selection -->
+                    <div class="mb-3">
+                        <label for="planUserSearch" class="form-label">Assign to User</label>
+                        <input type="text" id="planUserSearch" class="form-control" placeholder="Search by email..." onkeyup="searchPlanUsers()">
+                        <div id="planUserResults" style="position: absolute; background: white; border: 1px solid #ddd; border-radius: 4px; max-height: 200px; overflow-y: auto; width: 95%; display: none; z-index: 1000;">
+                        </div>
+                        <p id="selectedUserEmail" style="margin-top: 0.5rem; color: #667eea; font-weight: 500; display: none;"></p>
+                    </div>
+                    <input type="hidden" id="planUserId">
+                    
+                    <!-- Student Selection -->
+                    <div class="mb-3">
+                        <label for="planStudent" class="form-label">Assign to Student <span style="color: red;">*</span></label>
+                        <select id="planStudent" class="form-select" required>
+                            <option value="">Select a student...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planTotalOwed" class="form-label">Total Owed ($)</label>
+                                <input type="number" id="planTotalOwed" class="form-control" placeholder="e.g., 99.99" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="planAmountPerInstance" class="form-label">Amount per Instance ($)</label>
+                                <input type="number" id="planAmountPerInstance" class="form-control" placeholder="e.g., 9.99" min="0" step="0.01" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="planFrequency" class="form-label">Frequency</label>
+                        <select id="planFrequency" class="form-select" required>
+                            <option value="">Select frequency...</option>
+                            <option value="MONTHLY" selected>Monthly</option>
+                            <option value="QUARTERLY">Quarterly</option>
+                            <option value="SEMI_ANNUAL">Semi-Annual</option>
+                            <option value="ANNUAL">Annual</option>
+                            <option value="ONE_TIME">One Time</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="createPlanBtn">Create Plan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refund Modal -->
+    <div class="modal fade" id="refundModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Refund Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="refundError" class="alert alert-danger" style="display: none;"></div>
+                    <div class="mb-3">
+                        <label for="refundAmount" class="form-label">Refund Amount</label>
+                        <input type="number" class="form-control" id="refundAmount" min="0.01" step="0.01" required>
+                        <div class="form-text">Max: <span id="refundMax"></span></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="refundMethod" class="form-label">Refund Method</label>
+                        <select class="form-select" id="refundMethod" required>
+                            <option value="">Select method</option>
+                            <option value="CARD">Card</option>
+                            <option value="CASH">Cash</option>
+                            <option value="CHECK">Check</option>
+                        </select>
+                        <div class="form-text" id="refundMethodNote"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmRefundBtn">Refund</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Plan Payments</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="paymentError" class="alert alert-danger" style="display: none;"></div>
+                    <div id="paymentSuccess" class="alert alert-success" style="display: none;"></div>
+
+                    <!-- Tabs for different sections -->
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="paymentHistoryTab" data-bs-toggle="tab" data-bs-target="#paymentHistoryPanel" type="button">Payment History</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="cardInfoTab" data-bs-toggle="tab" data-bs-target="#cardInfoPanel" type="button">Card Info</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="addPaymentTab" data-bs-toggle="tab" data-bs-target="#addPaymentPanel" type="button">Add Payment</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content">
+                        <!-- Payment History Tab -->
+                        <div class="tab-pane fade show active" id="paymentHistoryPanel" role="tabpanel">
+                            <h6 class="mb-3">Payment History</h6>
+                            <div id="paymentHistoryList" class="list-group">
+                                <p class="text-muted">Loading payments...</p>
+                            </div>
+                        </div>
+
+                        <!-- Card Info Tab -->
+                        <div class="tab-pane fade" id="cardInfoPanel" role="tabpanel">
+                            <h6 class="mb-3">Credit Card Information</h6>
+                            <div class="mb-3">
+                                <label for="cardHolderName" class="form-label">Cardholder Name</label>
+                                <input type="text" id="cardHolderName" class="form-control" placeholder="Full name on card">
+                            </div>
+                            <div class="mb-3">
+                                <label for="cardBrand" class="form-label">Card Brand</label>
+                                <select id="cardBrand" class="form-select">
+                                    <option value="">Select card type...</option>
+                                    <option value="VISA">Visa</option>
+                                    <option value="MASTERCARD">Mastercard</option>
+                                    <option value="AMEX">American Express</option>
+                                    <option value="DISCOVER">Discover</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="cardLast4" class="form-label">Last 4 Digits</label>
+                                <input type="text" id="cardLast4" class="form-control" placeholder="e.g., 4242" maxlength="4">
+                            </div>
+                            <button class="btn btn-primary" onclick="updateCardInfo()">Update Card Info</button>
+                        </div>
+
+                        <!-- Add Payment Tab -->
+                        <div class="tab-pane fade" id="addPaymentPanel" role="tabpanel">
+                            <h6 class="mb-3">Add Payment</h6>
+                            <div class="mb-3">
+                                <label for="paymentAmount" class="form-label">Amount ($)</label>
+                                <input type="number" id="paymentAmount" class="form-control" placeholder="0.00" min="0" step="0.01">
+                            </div>
+                            <div class="mb-3">
+                                <label for="paymentMethod" class="form-label">Payment Method</label>
+                                <select id="paymentMethod" class="form-select" onchange="togglePaymentFields()">
+                                    <option value="CARD">Credit Card</option>
+                                    <option value="CASH">Cash</option>
+                                    <option value="CHECK">Check</option>
+                                </select>
+                            </div>
+                            <div id="cardFields" style="display: block;">
+                                <div class="mb-3">
+                                    <label for="adminCardNumber" class="form-label">Card Number</label>
+                                    <input type="text" id="adminCardNumber" class="form-control" maxlength="19" placeholder="1234 5678 9012 3456">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="adminCardExpiry" class="form-label">Expiry (MM/YY)</label>
+                                        <input type="text" id="adminCardExpiry" class="form-control" maxlength="5" placeholder="MM/YY">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="adminCardCVC" class="form-label">CVC</label>
+                                        <input type="text" id="adminCardCVC" class="form-control" maxlength="4" placeholder="CVC">
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="adminCardHolder" class="form-label">Cardholder Name</label>
+                                    <input type="text" id="adminCardHolder" class="form-control" placeholder="Full name on card">
+                                </div>
+                            </div>
+                            <div id="checkFields" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="adminCheckNumber" class="form-label">Check Number</label>
+                                    <input type="text" id="adminCheckNumber" class="form-control" placeholder="Enter check number">
+                                </div>
+                            </div>
+                            <div id="adminPaymentOptions" style="display: none;">
+                                <p class="text-info small">As an admin, you can record cash payments directly.</p>
+                            </div>
+                            <button class="btn btn-primary" onclick="addPayment()">Record Payment</button>
+                        </div>
+                    </div>
+
+                    <!-- Plan Summary -->
+                    <div class="mt-4 pt-3 border-top">
+                        <h6>Plan Summary</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Total Owed:</strong> $<span id="modalTotalOwed">0.00</span></p>
+                                <p><strong>Amount Paid:</strong> $<span id="modalAmountPaid">0.00</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Status:</strong> <span id="modalStatus" class="badge"></span></p>
+                                <p><strong>Progress:</strong> <span id="modalProgress">0%</span></p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label for="planFrequencyUpdate" class="form-label"><strong>Payment Frequency</strong></label>
+                            <div class="d-flex align-items-center gap-2">
+                                <select id="planFrequencyUpdate" class="form-select" style="flex: 1;">
+                                    <option value="MONTHLY">Monthly</option>
+                                    <option value="QUARTERLY">Quarterly</option>
+                                    <option value="SEMI_ANNUAL">Semi-Annual</option>
+                                    <option value="ANNUAL">Annual</option>
+                                    <option value="ONE_TIME">One Time</option>
+                                </select>
+                                <button class="btn btn-sm btn-primary" onclick="updatePlanFrequency()">Update</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" onclick="cancelPlanFromModal()" id="cancelPlanBtn">
+                        <i class="fas fa-times-circle"></i> Cancel Plan
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentItemId = null;
+        const itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
+
+        // Check authentication on page load
+        async function checkAuthentication() {
+            try {
+                const token = localStorage.getItem("AUTH_TOKEN");
+                if (!token) {
+                    console.warn('No token found, redirecting to login');
+                    window.location.href = '/payments/login';
+                    return false;
+                }
+                
+                const response = await fetch('/payments/api/auth/me', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.warn('Authentication failed:', response.status, response.statusText);
+                    localStorage.removeItem('AUTH_TOKEN');
+                    window.location.href = '/payments/login';
+                    return false;
+                }
+                const user = await response.json();
+                console.log('Authenticated as:', user.email);
+                document.getElementById('userName').textContent = user.email || 'Admin';
+                return true;
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                localStorage.removeItem('AUTH_TOKEN');
+                window.location.href = '/payments/login';
+                return false;
+            }
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            document.querySelectorAll('.sidebar a').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').style.display = 'block';
+            event.target.closest('a').classList.add('active');
+
+            // Load tab data
+            if (tabName === 'items') loadItems();
+            else if (tabName === 'orders') loadOrders();
+            else if (tabName === 'plans') fetchAllPlans();
+            else if (tabName === 'users') fetchAllUsers();
+        }
+
+        async function loadItems() {
+            document.getElementById('itemsLoading').style.display = 'block';
+            document.getElementById('itemsTable').style.display = 'none';
+            document.getElementById('itemsEmpty').style.display = 'none';
+
+            try {
+                const res = await fetch('/payments/api/items', {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("AUTH_TOKEN")}` }
+                });
+                if (!res.ok) throw new Error('Failed to load items');
+                
+                const items = await res.json();
+                const tbody = document.getElementById('itemsBody');
+                tbody.innerHTML = '';
+
+                if (items.length === 0) {
+                    document.getElementById('itemsEmpty').style.display = 'block';
+                } else {
+                    items.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${item.name}</td>
+                            <td>${item.category || '-'}</td>
+                            <td>$${(item.price / 100).toFixed(2)}</td>
+                            <td>${item.stock || 0}</td>
+                            <td>${item.description || '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="editItem(${item.id})">Edit</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteItem(${item.id})">Delete</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    document.getElementById('itemsTable').style.display = 'table';
+                }
+            } catch (error) {
+                console.error('Error loading items:', error);
+                document.getElementById('itemsEmpty').style.display = 'block';
+            } finally {
+                document.getElementById('itemsLoading').style.display = 'none';
+            }
+        }
+
+        async function loadOrders() {
+            document.getElementById('ordersLoading').style.display = 'block';
+            document.getElementById('ordersTable').style.display = 'none';
+            document.getElementById('ordersEmpty').style.display = 'none';
+
+            try {
+                const res = await fetch('/payments/api/orders', {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("AUTH_TOKEN")}` }
+                });
+                if (!res.ok) throw new Error('Failed to load orders');
+                
+                const orders = await res.json();
+                const tbody = document.getElementById('ordersBody');
+                tbody.innerHTML = '';
+
+                if (orders.length === 0) {
+                    document.getElementById('ordersEmpty').style.display = 'block';
+                } else {
+                    orders.forEach(order => {
+                        const row = document.createElement('tr');
+                        const statusBadge = `<span class="badge badge-${order.status?.toLowerCase()}">${order.status || 'PENDING'}</span>`;
+                        row.innerHTML = `
+                            <td>#${order.id}</td>
+                            <td>${order.userEmail || 'Unknown'}</td>
+                            <td>$${(order.total / 100).toFixed(2)}</td>
+                            <td>${statusBadge}</td>
+                            <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="viewOrder(${order.id})">View</button>
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                    document.getElementById('ordersTable').style.display = 'table';
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('ordersEmpty').style.display = 'block';
+            } finally {
+                document.getElementById('ordersLoading').style.display = 'none';
+            }
+        }
+
+        function openAddItemModal() {
+            currentItemId = null;
+            document.getElementById('itemModalTitle').textContent = 'Add Item';
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemCategory').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemStock').value = '';
+            document.getElementById('itemDescription').value = '';
+            document.getElementById('itemError').style.display = 'none';
+            itemModal.show();
+        }
+
+        async function editItem(itemId) {
+            try {
+                const res = await fetch(`/payments/api/items/${itemId}`, {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("AUTH_TOKEN")}` }
+                });
+                if (!res.ok) throw new Error('Failed to load item');
+                
+                const item = await res.json();
+                currentItemId = item.id;
+                document.getElementById('itemModalTitle').textContent = 'Edit Item';
+                document.getElementById('itemName').value = item.name;
+                document.getElementById('itemCategory').value = item.category || '';
+                document.getElementById('itemPrice').value = (item.price / 100).toFixed(2);
+                document.getElementById('itemStock').value = item.stock || 0;
+                document.getElementById('itemDescription').value = item.description || '';
+                document.getElementById('itemError').style.display = 'none';
+                itemModal.show();
+            } catch (error) {
+                alert('Error loading item: ' + error.message);
+            }
+        }
+
+        async function saveItem() {
+            const name = document.getElementById('itemName').value.trim();
+            const category = document.getElementById('itemCategory').value.trim();
+            const price = parseFloat(document.getElementById('itemPrice').value);
+            const stock = parseInt(document.getElementById('itemStock').value) || 0;
+            const description = document.getElementById('itemDescription').value.trim();
+
+            if (!name || !price) {
+                document.getElementById('itemError').textContent = 'Please fill in all required fields';
+                document.getElementById('itemError').style.display = 'block';
+                return;
+            }
+
+            try {
+                const body = {
+                    name,
+                    category,
+                    price: Math.round(price * 100),
+                    stock,
+                    description
+                };
+
+                const url = currentItemId ? `/payments/api/items/${currentItemId}` : '/payments/api/items';
+                const method = currentItemId ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}`
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                if (!res.ok) throw new Error('Failed to save item');
+                
+                itemModal.hide();
+                loadItems();
+            } catch (error) {
+                document.getElementById('itemError').textContent = 'Error: ' + error.message;
+                document.getElementById('itemError').style.display = 'block';
+            }
+        }
+
+        async function deleteItem(itemId) {
+            if (!confirm('Are you sure you want to delete this item?')) return;
+
+            try {
+                const res = await fetch(`/payments/api/items/${itemId}`, {
+                    method: 'DELETE',
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("AUTH_TOKEN")}` }
+                });
+
+                if (!res.ok) throw new Error('Failed to delete item');
+                loadItems();
+            } catch (error) {
+                alert('Error deleting item: ' + error.message);
+            }
+        }
+
+        function viewOrder(orderId) {
+            alert('Order details view coming soon!');
+        }
+
+        async function loadOrders() {
+            document.getElementById('ordersLoading').style.display = 'block';
+            document.getElementById('ordersTable').style.display = 'none';
+            document.getElementById('ordersEmpty').style.display = 'none';
+
+            try {
+                const res = await fetch('/payments/api/orders', {
+                    headers: { "Authorization": `Bearer ${localStorage.getItem("AUTH_TOKEN")}` }
+                });
+                
+                if (!res.ok) throw new Error('Failed to load orders');
+                
+                const orders = await res.json();
+                const tbody = document.getElementById('ordersBody');
+                tbody.innerHTML = '';
+
+                if (orders.length === 0) {
+                    document.getElementById('ordersEmpty').style.display = 'block';
+                } else {
+                    orders.forEach(order => {
+                        const row = document.createElement('tr');
+                        const total = parseFloat(order.totalAmount || 0).toFixed(2);
+                        const createdAt = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A';
+                        
+                        const idCell = document.createElement('td');
+                        idCell.textContent = order.id ? order.id.toString().substring(0, 8) : 'N/A';
+                        row.appendChild(idCell);
+                        
+                        const userCell = document.createElement('td');
+                        userCell.textContent = order.userEmail || 'N/A';
+                        row.appendChild(userCell);
+                        
+                        const totalCell = document.createElement('td');
+                        totalCell.textContent = '$' + total;
+                        row.appendChild(totalCell);
+                        
+                        const statusCell = document.createElement('td');
+                        const statusBadge = document.createElement('span');
+                        statusBadge.className = order.status === 'COMPLETED' ? 'badge bg-success' : 'badge bg-warning text-dark';
+                        statusBadge.textContent = order.status || 'PENDING';
+                        statusCell.appendChild(statusBadge);
+                        row.appendChild(statusCell);
+                        
+                        const dateCell = document.createElement('td');
+                        dateCell.textContent = createdAt;
+                        row.appendChild(dateCell);
+                        
+                        const actionsCell = document.createElement('td');
+                        const viewBtn = document.createElement('button');
+                        viewBtn.className = 'btn btn-sm btn-primary';
+                        viewBtn.innerHTML = '<i class=\"fas fa-eye\"></i> View';
+                        viewBtn.addEventListener('click', () => viewOrder(order.id));
+                        actionsCell.appendChild(viewBtn);
+                        row.appendChild(actionsCell);
+                        
+                        tbody.appendChild(row);
+                    });
+                    document.getElementById('ordersTable').style.display = 'table';
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('ordersEmpty').style.display = 'block';
+                document.getElementById('ordersEmpty').textContent = 'Failed to load orders: ' + error.message;
+            } finally {
+                document.getElementById('ordersLoading').style.display = 'none';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('AUTH_TOKEN');
+            window.location.href = '/payments/login';
+        }
+
+        // ===== PLANS & USERS MANAGEMENT FUNCTIONS =====
+        
+        let allPlans = [];
+        let allUsers = [];
+        let currentPaymentPlanId = null;
+
+        // Fetch all plans
+        async function fetchAllPlans() {
+            try {
+                const res = await fetch('/payments/api/admin/plans', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}` }
+                });
+                if (!res.ok) throw new Error('Failed to load plans');
+                allPlans = await res.json();
+                displayPlans(allPlans);
+            } catch (error) {
+                console.error('Error loading plans:', error);
+                alert('Failed to load plans');
+            }
+        }
+
+        // Display plans
+        function displayPlans(plans) {
+            const tbody = document.getElementById('plansBody');
+            tbody.innerHTML = '';
+            if (plans.length === 0) {
+                document.getElementById('plansEmpty').style.display = 'block';
+                document.getElementById('plansTable').style.display = 'none';
+                document.getElementById('plansLoading').style.display = 'none';
+                return;
+            }
+            plans.forEach(plan => {
+                const row = document.createElement('tr');
+                const studentDisplay = plan.studentName ? `${plan.studentName} (#${plan.studentId})` : 'No student assigned';
+                const amountCents = Number(plan.amount) || 0;
+                const totalOwedCents = Number(plan.totalOwed) || amountCents;
+                const amountPaidCents = Number(plan.amountPaid) || 0;
+                const totalOwed = (totalOwedCents / 100).toFixed(2);
+                const amountPaid = (amountPaidCents / 100).toFixed(2);
+                const progressPercent = totalOwedCents > 0 ? Math.min(100, Math.round((amountPaidCents / totalOwedCents) * 100)) : 0;
+                const startDate = new Date(plan.startDate).toLocaleDateString();
+                
+                // Email cell
+                const emailCell = document.createElement('td');
+                emailCell.textContent = plan.userEmail || 'N/A';
+                row.appendChild(emailCell);
+                
+                // Student cell
+                const studentCell = document.createElement('td');
+                studentCell.textContent = studentDisplay;
+                row.appendChild(studentCell);
+                
+                // Amount cell
+                const amountCell = document.createElement('td');
+                amountCell.textContent = '$' + (plan.amount / 100).toFixed(2);
+                row.appendChild(amountCell);
+                
+                // Progress cell
+                const progressCell = document.createElement('td');
+                progressCell.innerHTML = `
+                    <div class="d-flex justify-content-between small"><span>$${amountPaid}</span><span>$${totalOwed}</span></div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar" role="progressbar" style="width: ${progressPercent}%;" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                `;
+                row.appendChild(progressCell);
+                
+                // Status cell
+                const statusCell = document.createElement('td');
+                const statusBadge = document.createElement('span');
+                if (plan.paused) {
+                    statusBadge.className = 'badge bg-warning text-dark';
+                    statusBadge.textContent = 'PAUSED';
+                } else {
+                    statusBadge.className = plan.status === 'ACTIVE' ? 'badge bg-success' : 'badge bg-secondary';
+                    statusBadge.textContent = plan.status;
+                }
+                statusCell.appendChild(statusBadge);
+                row.appendChild(statusCell);
+                
+                // Date cell
+                const dateCell = document.createElement('td');
+                dateCell.textContent = startDate;
+                row.appendChild(dateCell);
+                
+                // Next Charge Date cell
+                const nextChargeCell = document.createElement('td');
+                if (plan.nextChargeDate && plan.frequency !== 'ONE_TIME') {
+                    const nextDate = new Date(plan.nextChargeDate).toLocaleDateString();
+                    nextChargeCell.textContent = nextDate;
+                } else {
+                    nextChargeCell.textContent = 'N/A';
+                    nextChargeCell.style.color = '#999';
+                }
+                row.appendChild(nextChargeCell);
+                
+                // Actions cell
+                const actionsCell = document.createElement('td');
+                
+                const viewBtn = document.createElement('button');
+                viewBtn.className = 'btn btn-sm btn-primary me-2';
+                viewBtn.innerHTML = '<i class=\"fas fa-eye\"></i> View';
+                viewBtn.addEventListener('click', () => openPaymentModal(plan.id));
+                actionsCell.appendChild(viewBtn);
+                
+                const refundBtn = document.createElement('button');
+                refundBtn.className = 'btn btn-sm btn-warning me-2';
+                refundBtn.innerHTML = '<i class=\"fas fa-undo-alt\"></i> Refund';
+                refundBtn.disabled = plan.status === 'CANCELLED';
+                refundBtn.addEventListener('click', () => openRefundModal(plan.id, plan.amountPaid, plan.paymentMethod, refundBtn));
+                actionsCell.appendChild(refundBtn);
+                
+                // Pause/Resume button
+                const pauseResumeBtn = document.createElement('button');
+                pauseResumeBtn.className = plan.paused ? 'btn btn-sm btn-success' : 'btn btn-sm btn-secondary';
+                pauseResumeBtn.innerHTML = plan.paused ? '<i class=\"fas fa-play\"></i> Resume' : '<i class=\"fas fa-pause\"></i> Pause';
+                pauseResumeBtn.disabled = plan.status === 'CANCELLED';
+                pauseResumeBtn.addEventListener('click', () => togglePausePlan(plan.id, plan.paused));
+                actionsCell.appendChild(pauseResumeBtn);
+                
+                row.appendChild(actionsCell);
+                tbody.appendChild(row);
+            });
+            document.getElementById('plansTable').style.display = 'table';
+            document.getElementById('plansEmpty').style.display = 'none';
+            document.getElementById('plansLoading').style.display = 'none';
+        }
+
+        // Filter plans
+        function filterPlans() {
+            const searchTerm = document.getElementById('plansSearchInput').value.toLowerCase();
+            const filtered = allPlans.filter(plan => {
+                const email = (plan.userEmail || '').toLowerCase();
+                const id = (plan.id || '').toLowerCase();
+                return email.includes(searchTerm) || id.includes(searchTerm);
+            });
+            displayPlans(filtered);
+        }
+
+        // Open create plan modal
+        async function openCreatePlanModal() {
+            // Reset form
+            document.getElementById('planUserSearch').value = '';
+            document.getElementById('planUserId').value = '';
+            document.getElementById('selectedUserEmail').style.display = 'none';
+            document.getElementById('planStudent').value = '';
+            document.getElementById('planTotalOwed').value = '';
+            document.getElementById('planAmountPerInstance').value = '';
+            document.getElementById('planFrequency').value = 'MONTHLY';
+            document.getElementById('createPlanError').style.display = 'none';
+            
+            const modal = new bootstrap.Modal(document.getElementById('createPlanModal'));
+            modal.show();
+        }
+
+        // Open payment modal to view plan details
+        function openPaymentModal(planId) {
+            alert('Plan detail view coming soon! Plan ID: ' + planId);
+        }
+
+        // Open refund modal
+        let refundPlanId = null;
+        let refundButtonRef = null;
+        function openRefundModal(planId, maxAmount, paymentMethod, buttonRef) {
+            refundPlanId = planId;
+            refundButtonRef = buttonRef;
+            alert('Refund feature coming soon! Max refund: $' + (Number(maxAmount) / 100).toFixed(2));
+        }
+        
+        // Toggle pause/resume subscription
+        async function togglePausePlan(planId, isPaused) {
+            if (!confirm(isPaused ? 'Resume this subscription?' : 'Pause this subscription?')) {
+                return;
+            }
+            
+            try {
+                const endpoint = isPaused ? '/payments/api/admin/plans/' + planId + '/resume' : '/payments/api/admin/plans/' + planId + '/pause';
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}` }
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    alert('Error: ' + (error.error || 'Failed to update subscription'));
+                    return;
+                }
+                
+                const message = isPaused ? 'Subscription resumed successfully' : 'Subscription paused successfully';
+                alert(message);
+                fetchAllPlans();
+            } catch (error) {
+                console.error('Error toggling pause:', error);
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Fetch all users
+        async function fetchAllUsers() {
+            try {
+                document.getElementById('usersLoading').style.display = 'block';
+                document.getElementById('usersTable').style.display = 'none';
+                document.getElementById('usersEmpty').style.display = 'none';
+                
+                const res = await fetch('/payments/api/admin/users', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}` }
+                });
+                if (!res.ok) throw new Error('Failed to load users');
+                
+                allUsers = await res.json();
+                displayUsers(allUsers);
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersEmpty').style.display = 'block';
+                document.getElementById('usersLoading').style.display = 'none';
+            }
+        }
+
+        // Display users
+        function displayUsers(users) {
+            const tbody = document.getElementById('usersBody');
+            tbody.innerHTML = '';
+            if (!users || users.length === 0) {
+                document.getElementById('usersEmpty').style.display = 'block';
+                document.getElementById('usersTable').style.display = 'none';
+                document.getElementById('usersLoading').style.display = 'none';
+                return;
+            }
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A';
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = fullName;
+                row.appendChild(nameCell);
+                
+                const emailCell = document.createElement('td');
+                emailCell.textContent = user.email;
+                row.appendChild(emailCell);
+                
+                const roleCell = document.createElement('td');
+                const roleBadge = document.createElement('span');
+                roleBadge.className = 'badge bg-info';
+                roleBadge.textContent = user.role;
+                roleCell.appendChild(roleBadge);
+                row.appendChild(roleCell);
+                
+                const studentCell = document.createElement('td');
+                studentCell.textContent = (user.students ? user.students.length : 0) + ' students';
+                row.appendChild(studentCell);
+                
+                const actionsCell = document.createElement('td');
+                
+                const studentsBtn = document.createElement('button');
+                studentsBtn.className = 'btn btn-sm btn-primary me-2';
+                studentsBtn.innerHTML = '<i class="fas fa-graduation-cap"></i> Students';
+                studentsBtn.addEventListener('click', () => viewUserStudents(user.id, user.email));
+                actionsCell.appendChild(studentsBtn);
+                
+                const resetBtn = document.createElement('button');
+                resetBtn.className = 'btn btn-sm btn-warning';
+                resetBtn.innerHTML = '<i class="fas fa-key"></i> Reset Pwd';
+                resetBtn.addEventListener('click', () => openResetPasswordModal(user.id, user.email));
+                actionsCell.appendChild(resetBtn);
+                
+                row.appendChild(actionsCell);
+                tbody.appendChild(row);
+            });
+            document.getElementById('usersTable').style.display = 'table';
+            document.getElementById('usersEmpty').style.display = 'none';
+            document.getElementById('usersLoading').style.display = 'none';
+        }
+
+        // Filter users
+        function filterUsers() {
+            const searchTerm = document.getElementById('userSearchInput').value.toLowerCase();
+            const filtered = allUsers.filter(user => {
+                const email = (user.email || '').toLowerCase();
+                return email.includes(searchTerm);
+            });
+            displayUsers(filtered);
+        }
+
+        // User management functions
+        let currentResetUserId = null;
+        let currentStudentsUserId = null;
+
+        function openResetPasswordModal(userId, email) {
+            currentResetUserId = userId;
+            document.getElementById('resetUserEmail').textContent = `Resetting password for: ${email}`;
+            document.getElementById('newPassword').value = '';
+            document.getElementById('resetError').style.display = 'none';
+            const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+            
+            // Set up the button click handler
+            document.getElementById('resetPasswordBtn').onclick = async () => {
+                const newPassword = document.getElementById('newPassword').value.trim();
+                const errorDiv = document.getElementById('resetError');
+                
+                if (!newPassword || newPassword.length < 6) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Password must be at least 6 characters';
+                    return;
+                }
+                
+                try {
+                    const res = await fetch(`/payments/api/admin/users/${userId}/reset-password`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}`
+                        },
+                        body: JSON.stringify({ password: newPassword })
+                    });
+                    
+                    if (!res.ok) throw new Error('Failed to reset password');
+                    
+                    const modalInstance = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+                    modalInstance.hide();
+                    alert('Password reset successfully!');
+                } catch (error) {
+                    errorDiv.style.display = 'block';
+                    errorDiv.textContent = 'Error: ' + error.message;
+                }
+            };
+            
+            modal.show();
+        }
+
+        function viewUserStudents(userId, email) {
+            currentStudentsUserId = userId;
+            document.getElementById('studentsUserEmail').textContent = `Students for: ${email}`;
+            document.getElementById('studentsError').style.display = 'none';
+            document.getElementById('studentsSuccess').style.display = 'none';
+            document.getElementById('newStudentId').value = '';
+            document.getElementById('newStudentFirstName').value = '';
+            document.getElementById('newStudentLastName').value = '';
+            
+            const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
+            modal.show();
+            
+            loadUserStudents(userId);
+        }
+
+        async function loadUserStudents(userId) {
+            document.getElementById('studentsListLoading').style.display = 'block';
+            document.getElementById('studentsListTable').style.display = 'none';
+            document.getElementById('studentsListEmpty').style.display = 'none';
+            
+            try {
+                const res = await fetch(`/payments/api/students/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}` }
+                });
+                
+                if (!res.ok) throw new Error('Failed to load students');
+                
+                const students = await res.json();
+                const tbody = document.getElementById('studentsListBody');
+                tbody.innerHTML = '';
+                
+                if (!students || students.length === 0) {
+                    document.getElementById('studentsListEmpty').style.display = 'block';
+                    document.getElementById('studentsListLoading').style.display = 'none';
+                    return;
+                }
+                
+                students.forEach(student => {
+                    const row = document.createElement('tr');
+                    const fullName = `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'N/A';
+                    row.innerHTML = `
+                        <td>${student.studentId}</td>
+                        <td>${fullName}</td>
+                        <td><button class="btn btn-sm btn-danger" onclick="removeStudentFromUser('${student.studentId}')">Remove</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                document.getElementById('studentsListTable').style.display = 'table';
+            } catch (error) {
+                console.error('Error loading students:', error);
+                document.getElementById('studentsListEmpty').style.display = 'block';
+                document.getElementById('studentsListEmpty').textContent = 'Error loading students';
+            } finally {
+                document.getElementById('studentsListLoading').style.display = 'none';
+            }
+        }
+
+        async function addStudentToUser() {
+            const studentId = document.getElementById('newStudentId').value.trim();
+            const firstName = document.getElementById('newStudentFirstName').value.trim();
+            const lastName = document.getElementById('newStudentLastName').value.trim();
+            const errorDiv = document.getElementById('studentsError');
+            const successDiv = document.getElementById('studentsSuccess');
+            
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            
+            if (!studentId) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Student ID is required';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/payments/api/students/user/${currentStudentsUserId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}`
+                    },
+                    body: JSON.stringify({ studentId, firstName, lastName })
+                });
+                
+                if (!res.ok) throw new Error('Failed to add student');
+                
+                successDiv.style.display = 'block';
+                successDiv.textContent = 'Student added successfully';
+                document.getElementById('newStudentId').value = '';
+                document.getElementById('newStudentFirstName').value = '';
+                document.getElementById('newStudentLastName').value = '';
+                
+                await loadUserStudents(currentStudentsUserId);
+                setTimeout(() => { successDiv.style.display = 'none'; }, 3000);
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function removeStudentFromUser(studentId) {
+            if (!confirm('Remove this student?')) return;
+            
+            try {
+                const res = await fetch(`/payments/api/students/user/${currentStudentsUserId}/student/${studentId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}` }
+                });
+                
+                if (!res.ok) throw new Error('Failed to remove student');
+                
+                await loadUserStudents(currentStudentsUserId);
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Search for users to assign plan
+        let planSearchResults = [];
+        async function searchPlanUsers() {
+            const searchTerm = document.getElementById('planUserSearch').value.trim();
+            const resultsDiv = document.getElementById('planUserResults');
+            
+            if (!searchTerm) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const res = await fetch('/payments/api/admin/users', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}` }
+                });
+                if (!res.ok) throw new Error('Failed to load users');
+                
+                const users = await res.json();
+                planSearchResults = users.filter(u => u.email.toLowerCase().includes(searchTerm.toLowerCase()));
+                
+                resultsDiv.innerHTML = '';
+                if (planSearchResults.length === 0) {
+                    resultsDiv.style.display = 'none';
+                    return;
+                }
+                
+                planSearchResults.forEach(user => {
+                    const div = document.createElement('div');
+                    div.style.padding = '10px';
+                    div.style.borderBottom = '1px solid #eee';
+                    div.style.cursor = 'pointer';
+                    div.textContent = user.email;
+                    div.onmouseover = () => div.style.backgroundColor = '#f5f5f5';
+                    div.onmouseout = () => div.style.backgroundColor = 'white';
+                    div.onclick = () => selectPlanUser(user.id, user.email);
+                    resultsDiv.appendChild(div);
+                });
+                resultsDiv.style.display = 'block';
+            } catch (error) {
+                console.error('Error searching users:', error);
+            }
+        }
+        
+        async function selectPlanUser(userId, email) {
+            document.getElementById('planUserId').value = userId;
+            document.getElementById('planUserSearch').value = email;
+            document.getElementById('selectedUserEmail').textContent = `User: ${email}`;
+            document.getElementById('selectedUserEmail').style.display = 'block';
+            document.getElementById('planUserResults').style.display = 'none';
+            
+            // Load student options for this user
+            await loadUserStudentsForPlan(userId);
+        }
+        
+        async function loadUserStudentsForPlan(userId) {
+            try {
+                const res = await fetch(`/payments/api/students/user/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}` }
+                });
+                if (!res.ok) throw new Error('Failed to load students');
+                
+                const students = await res.json();
+                const select = document.getElementById('planStudent');
+                select.innerHTML = '<option value="">Select a student...</option>';
+                
+                if (students && students.length > 0) {
+                    students.forEach(student => {
+                        const option = document.createElement('option');
+                        option.value = student.studentId;
+                        option.textContent = `${student.firstName || ''} ${student.lastName || ''}`.trim();
+                        select.appendChild(option);
+                    });
+                } else {
+                    document.getElementById('createPlanError').style.display = 'block';
+                    document.getElementById('createPlanError').textContent = 'This user has no students. Please select a different user or add students first.';
+                }
+            } catch (error) {
+                console.error('Error loading students:', error);
+            }
+        }
+
+        // Fetch pending refunds (stub)
+        async function fetchPendingRefunds() {
+            alert('Refund approval feature coming soon!');
+        }
+
+        // Create plan button handler
+        async function createPaymentPlan() {
+            const userId = document.getElementById('planUserId').value.trim();
+            const studentId = document.getElementById('planStudent').value.trim();
+            const totalOwed = parseFloat(document.getElementById('planTotalOwed').value);
+            const amountPerInstance = parseFloat(document.getElementById('planAmountPerInstance').value);
+            const frequency = document.getElementById('planFrequency').value;
+            const errorDiv = document.getElementById('createPlanError');
+            
+            errorDiv.style.display = 'none';
+            
+            // Validation
+            if (!userId) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Please select a user';
+                return;
+            }
+            
+            if (!studentId) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Please select a student';
+                return;
+            }
+            
+            if (!totalOwed || totalOwed <= 0) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Please enter a valid total owed amount';
+                return;
+            }
+            
+            if (!amountPerInstance || amountPerInstance <= 0) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Please enter a valid amount per instance';
+                return;
+            }
+            
+            try {
+                const res = await fetch('/payments/api/admin/plans', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('AUTH_TOKEN')}`
+                    },
+                    body: JSON.stringify({
+                        userId,
+                        studentId,
+                        totalOwed: Math.round(totalOwed * 100),
+                        amount: Math.round(amountPerInstance * 100),
+                        frequency
+                    })
+                });
+                
+                if (!res.ok) throw new Error('Failed to create payment plan');
+                
+                const modal = bootstrap.Modal.getInstance(document.getElementById('createPlanModal'));
+                modal.hide();
+                fetchAllPlans();
+                alert('Payment plan created successfully!');
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            const isAuthenticated = await checkAuthentication();
+            if (isAuthenticated) {
+                loadItems();
+                fetchAllPlans();
+                
+                // Attach create plan button handler
+                document.getElementById('createPlanBtn').addEventListener('click', createPaymentPlan);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; font-src 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://apps.dev.krhscougarband.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src 'self' https://apps.dev.krhscougarband.org; img-src 'self' data:; font-src 'self' https://cdnjs.cloudflare.com;">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Portal</title>
@@ -537,7 +537,102 @@
       font-size: 0.875rem;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/keycloak-js@23.0.7/dist/keycloak.min.js"></script>
   <script>
+    // Keycloak initialization
+    let keycloakAuth = null;
+
+    async function initKeycloak() {
+      try {
+        const configResp = await fetch('/admin/api/auth/config');
+        const config = await configResp.json();
+        
+        const keycloak = new Keycloak({
+          url: config.authServerUrl,
+          realm: config.realm,
+          clientId: config.clientId
+        });
+
+        const authenticated = await keycloak.init({ 
+          onLoad: 'check-sso',
+          pkceMethod: 'S256'
+        });
+
+        if (authenticated) {
+          keycloakAuth = keycloak;
+          updateAuthUI();
+          // Token refresh every 60 seconds
+          setInterval(() => {
+            keycloak.updateToken(30).catch(() => {
+              console.warn('Token refresh failed, logging out');
+              keycloak.logout();
+            });
+          }, 60000);
+        } else {
+          showLoginScreen();
+        }
+      } catch (e) {
+        console.error('Keycloak init failed:', e);
+        showLoginScreen();
+      }
+    }
+
+    function showLoginScreen() {
+      document.getElementById('container').style.display = 'none';
+      const loginDiv = document.getElementById('loginScreen') || createLoginScreen();
+      loginDiv.style.display = 'block';
+    }
+
+    function createLoginScreen() {
+      const div = document.createElement('div');
+      div.id = 'loginScreen';
+      div.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        z-index: 1000;
+      `;
+      div.innerHTML = `
+        <div style="text-align: center; color: #f8fafc;">
+          <h2 style="font-size: 2rem; margin-bottom: 2rem;">Admin Portal</h2>
+          <button onclick="keycloakAuth ? keycloakAuth.login() : window.location.reload()" style="
+            padding: 0.75rem 2rem;
+            background: #4f46e5;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+          ">Sign in with Keycloak</button>
+        </div>
+      `;
+      document.body.appendChild(div);
+      return div;
+    }
+
+    function updateAuthUI() {
+      const container = document.getElementById('container');
+      if (container) container.style.display = 'block';
+      const loginDiv = document.getElementById('loginScreen');
+      if (loginDiv) loginDiv.style.display = 'none';
+    }
+
+    function getAuthHeaders() {
+      if (!keycloakAuth) return {};
+      return {
+        'Authorization': `Bearer ${keycloakAuth.token}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    window.addEventListener('DOMContentLoaded', initKeycloak);
         // Tab navigation handler (copied from admin-plans.html)
         function switchTab(tab) {
           const plansContent = document.getElementById('plansContent');
@@ -564,7 +659,8 @@
         }
     function apiFetch(path, options) {
       const url = `/admin/api${path}`;
-      return fetch(url, options);
+      const headers = getAuthHeaders();
+      return fetch(url, { ...options, headers: { ...headers, ...options?.headers } });
     }
 
     async function load() {
@@ -591,26 +687,61 @@
           const statusClass = item.state === 'running' ? 'status-running' : (isMx ? 'status-maintenance' : (isDeploying ? 'status-deploying' : (item.state === 'archived' ? 'status-stopped' : 'status-stopped')));
           const statusText = item.state === 'running' ? 'Running' : (isMx ? 'MX Mode' : (isDeploying ? 'Deploying' : (item.state === 'archived' ? 'Archived' : 'Stopped')));
           const target = encodeURIComponent(item.id || item.name);
-          let actionBtn = '';
+          const tdName = document.createElement('td');
+          const viewBtn = document.createElement('button');
+          viewBtn.className = 'link-btn';
+          viewBtn.title = 'View details';
+          viewBtn.onclick = () => showDetails(target);
+          const strong = document.createElement('strong');
+          strong.textContent = item.name;
+          viewBtn.appendChild(strong);
+          tdName.appendChild(viewBtn);
+
+          const tdImage = document.createElement('td');
+          const code = document.createElement('code');
+          code.style.fontSize = '0.85rem';
+          code.style.color = 'var(--text-secondary)';
+          code.textContent = item.image;
+          tdImage.appendChild(code);
+
+          const tdStatus = document.createElement('td');
+          const statusSpan = document.createElement('span');
+          statusSpan.className = `status-badge ${statusClass}`;
+          statusSpan.textContent = statusText;
+          tdStatus.appendChild(statusSpan);
+
+          const tdControls = document.createElement('td');
+          tdControls.className = 'controls';
+          const restartBtn = document.createElement('button');
+          restartBtn.className = 'btn-secondary';
+          restartBtn.textContent = 'Restart';
+          restartBtn.onclick = () => ctrl(target, 'restart');
+          tdControls.appendChild(restartBtn);
+
           if (item.state === 'running') {
-            actionBtn = `<button class=\"btn-danger\" onclick=\"ctrl('${target}','stop')\">Stop</button>`;
-          } else if (isMx || item.state === 'archived' || isDeploying) {
-            // App Platform does not support start/stop; hide misleading Start for archived/maintenance
-            actionBtn = '';
-          } else {
-            actionBtn = `<button class=\"btn-success\" onclick=\"ctrl('${target}','start')\">Start</button>`;
+            const stopBtn = document.createElement('button');
+            stopBtn.className = 'btn-danger';
+            stopBtn.textContent = 'Stop';
+            stopBtn.onclick = () => ctrl(target, 'stop');
+            tdControls.appendChild(stopBtn);
+          } else if (!isMx && item.state !== 'archived' && !isDeploying) {
+            const startBtn = document.createElement('button');
+            startBtn.className = 'btn-success';
+            startBtn.textContent = 'Start';
+            startBtn.onclick = () => ctrl(target, 'start');
+            tdControls.appendChild(startBtn);
           }
-          
-          tr.innerHTML = `
-            <td><button class=\"link-btn\" title=\"View details\" onclick=\"showDetails('${target}')\"><strong>${item.name}</strong></button></td>
-            <td><code style=\"font-size: 0.85rem; color: var(--text-secondary);\">${item.image}</code></td>
-            <td><span class=\"status-badge ${statusClass}\">${statusText}</span></td>
-            <td class=\"controls\">
-              <button class=\"btn-secondary\" onclick=\"ctrl('${target}','restart')\">Restart</button>
-              ${actionBtn}
-              <button class=\"btn-danger\" onclick=\"deleteService('${target}')\">Delete</button>
-            </td>
-          `;
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-danger';
+          delBtn.textContent = 'Delete';
+          delBtn.onclick = () => deleteService(target);
+          tdControls.appendChild(delBtn);
+
+          tr.appendChild(tdName);
+          tr.appendChild(tdImage);
+          tr.appendChild(tdStatus);
+          tr.appendChild(tdControls);
           tbody.appendChild(tr);
         });
       } catch (e) {
@@ -618,7 +749,16 @@
         const hint = (String(e && e.message || '').toLowerCase().includes('failed to fetch'))
           ? ' This may be due to TLS certificate issues or CORS blocking.'
           : '';
-        document.getElementById('tbody').innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--danger);">Error loading services.${hint}</td></tr>`;
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        td.style.textAlign = 'center';
+        td.style.color = 'var(--danger)';
+        td.textContent = `Error loading services.${hint}`;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
       }
     }
     async function ctrl(target, action) {
@@ -659,11 +799,22 @@
       const container = document.getElementById('envVarsList');
       const row = document.createElement('div');
       row.className = 'env-var-row';
-      row.innerHTML = `
-        <input type="text" placeholder="KEY" class="env-key" />
-        <input type="text" placeholder="value" class="env-value" />
-        <button type="button" class="btn-danger" onclick="this.parentElement.remove()">✕</button>
-      `;
+      const keyInput = document.createElement('input');
+      keyInput.type = 'text';
+      keyInput.placeholder = 'KEY';
+      keyInput.className = 'env-key';
+      const valInput = document.createElement('input');
+      valInput.type = 'text';
+      valInput.placeholder = 'value';
+      valInput.className = 'env-value';
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn-danger';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => row.remove());
+      row.appendChild(keyInput);
+      row.appendChild(valInput);
+      row.appendChild(delBtn);
       container.appendChild(row);
     }
     async function createService(e) {
@@ -735,7 +886,11 @@
     async function showDetails(target) {
       const modal = document.getElementById('detailsModal');
       const body = document.getElementById('detailsBody');
-      body.innerHTML = '<div style="color:var(--text-secondary)">Loading…</div>';
+      body.innerHTML = '';
+      const loading = document.createElement('div');
+      loading.style.color = 'var(--text-secondary)';
+      loading.textContent = 'Loading…';
+      body.appendChild(loading);
       modal.classList.add('active');
       modal.dataset.target = target;
       document.getElementById('detailsEditFooter').style.display = 'none';
@@ -744,69 +899,192 @@
         const resp = await apiFetch(`/containers/${target}`);
         if (!resp.ok) {
           const e = await resp.json().catch(()=>({error:'error'}));
-          body.innerHTML = `<div style='color: var(--danger)'>Failed to load: ${e.error || resp.status}</div>`;
+          body.innerHTML = '';
+          const errDiv = document.createElement('div');
+          errDiv.style.color = 'var(--danger)';
+          errDiv.textContent = `Failed to load: ${e.error || resp.status}`;
+          body.appendChild(errDiv);
           return;
         }
         const d = await resp.json();
         const isDeploying = String(d.status?.state||'').toLowerCase() !== 'running' && String(d.status?.health||'').toLowerCase() !== 'healthy' && String(d.status?.health||'').toLowerCase() !== 'unhealthy' && String(d.status?.state||'').toLowerCase() !== 'archived' && String(d.status?.mxMode||'') !== 'true' && String(d.status?.health||'').toLowerCase() === 'superseded' || String(d.status?.state||'').toLowerCase() === 'superseded';
-        const badge = d.status.state === 'running'
-          ? '<span class="status-badge status-running">Running</span>'
-          : (d.status.state === 'mx'
-            ? '<span class="status-badge status-maintenance">MX Mode</span>'
-            : (d.status.state === 'archived'
-              ? '<span class="status-badge status-stopped">Archived</span>'
-              : (isDeploying
-                ? '<span class="status-badge status-deploying">Deploying</span>'
-                : `<span class="status-badge status-stopped">${d.status.state}</span>`)));
-        const source = d.service.source.type === 'github' ? `${d.service.source.repo}@${d.service.source.branch || 'main'}${d.service.source.dockerfile_path ? ' • ' + d.service.source.dockerfile_path : ''}` : (d.service.source.type === 'image' ? `${d.service.source.repository}:${d.service.source.tag || 'latest'}` : 'Unknown');
-        const envRows = (d.service.envs || []).map(ev => `<tr><td>${ev.key}</td><td><code>${ev.value || '(secret)'}</code></td><td>${ev.scope || ''}</td></tr>`).join('') || '<tr><td colspan="3" style="color:var(--text-secondary)">None</td></tr>';
-        const ingress = (d.ingress || []).map(r => `${r.match?.path?.prefix || '/'} → ${r.component?.name}`).join('<br/>') || '<span style="color:var(--text-secondary)">None</span>';
-        const events = (d.deployment.events || []).map(e => `${e.name}: ${e.status}`).join('<br/>') || '<span style="color:var(--text-secondary)">None</span>';
+        body.innerHTML = '';
+        const section = document.createElement('div');
+        section.className = 'config-section';
 
-        body.innerHTML = `
-          <div class="config-section">
-            <div class="config-card">
-              <h3>Overview</h3>
-              <div class="info-text">${badge}</div>
-              <div><strong>App:</strong> ${d.app.name} (${d.app.id})</div>
-              <div><strong>Service:</strong> ${d.service.name} (${d.service.type})</div>
-              <div><strong>Region:</strong> ${d.app.region} • <strong>Tier:</strong> ${d.app.tier}</div>
-              <div><strong>URL:</strong> <a href="${d.app.live_url}" target="_blank">${d.app.live_url}</a></div>
-            </div>
-            <div class="config-card">
-              <h3>Runtime</h3>
-              <div><strong>Instances:</strong> ${d.service.instance_count ?? '—'}</div>
-              <div><strong>Size:</strong> ${d.service.instance_size_slug ?? '—'}</div>
-              <div><strong>Port:</strong> ${d.service.http_port ?? '—'}</div>
-              <div><strong>Routes:</strong> ${(d.service.routes || []).map(r=>r.path).join(', ') || '—'}</div>
-              <div><strong>Source:</strong> ${source}</div>
-            </div>
-            <div class="config-card">
-              <h3>Deployment</h3>
-              <div><strong>Phase:</strong> ${d.deployment.phase || '—'}</div>
-              <div><strong>Deployment ID:</strong> ${d.deployment.id || '—'}</div>
-              <div><strong>Commit:</strong> ${d.deployment.commit || '—'}</div>
-              <div style="margin-top:0.5rem;"><strong>Events:</strong><br/>${events}</div>
-            </div>
-            <div class="config-card" style="grid-column:1 / -1;">
-              <h3>Environment</h3>
-              <table style="width:100%">
-                <thead><tr><th>Key</th><th>Value</th><th>Scope</th></tr></thead>
-                <tbody>${envRows}</tbody>
-              </table>
-            </div>
-            <div class="config-card" style="grid-column:1 / -1;">
-              <h3>Ingress</h3>
-              <div>${ingress}</div>
-            </div>
-          </div>
-          <div class="config-card" style="margin-top:1rem;">
-            <h3>Raw</h3>
-            <pre style="white-space:pre-wrap;max-height:300px;overflow:auto;background:var(--bg-primary);padding:1rem;border-radius:8px;border:1px solid var(--border);">${escapeHtml(JSON.stringify(d, null, 2))}</pre>
-          </div>
-        `;
+        const makeCard = (title) => {
+          const card = document.createElement('div');
+          card.className = 'config-card';
+          const h3 = document.createElement('h3');
+          h3.textContent = title;
+          card.appendChild(h3);
+          return card;
+        };
+
+        const makeInfoLine = (label, valueNodeOrText) => {
+          const div = document.createElement('div');
+          const strong = document.createElement('strong');
+          strong.textContent = label;
+          div.appendChild(strong);
+          div.appendChild(document.createTextNode(' '));
+          if (valueNodeOrText instanceof Node) {
+            div.appendChild(valueNodeOrText);
+          } else {
+            div.appendChild(document.createTextNode(valueNodeOrText));
+          }
+          return div;
+        };
+
+        const overview = makeCard('Overview');
+        const badgeSpan = document.createElement('span');
+        if (d.status.state === 'running') {
+          badgeSpan.className = 'status-badge status-running';
+          badgeSpan.textContent = 'Running';
+        } else if (d.status.state === 'mx') {
+          badgeSpan.className = 'status-badge status-maintenance';
+          badgeSpan.textContent = 'MX Mode';
+        } else if (d.status.state === 'archived') {
+          badgeSpan.className = 'status-badge status-stopped';
+          badgeSpan.textContent = 'Archived';
+        } else if (isDeploying) {
+          badgeSpan.className = 'status-badge status-deploying';
+          badgeSpan.textContent = 'Deploying';
+        } else {
+          badgeSpan.className = 'status-badge status-stopped';
+          badgeSpan.textContent = d.status.state || 'Unknown';
+        }
+        const badgeWrap = document.createElement('div');
+        badgeWrap.className = 'info-text';
+        badgeWrap.appendChild(badgeSpan);
+        overview.appendChild(badgeWrap);
+        overview.appendChild(makeInfoLine('App:', `${d.app.name} (${d.app.id})`));
+        overview.appendChild(makeInfoLine('Service:', `${d.service.name} (${d.service.type})`));
+        overview.appendChild(makeInfoLine('Region:', `${d.app.region} • Tier: ${d.app.tier}`));
+        const urlLink = document.createElement('a');
+        urlLink.href = d.app.live_url;
+        urlLink.target = '_blank';
+        urlLink.rel = 'noreferrer';
+        urlLink.textContent = d.app.live_url;
+        overview.appendChild(makeInfoLine('URL:', urlLink));
+
+        const runtime = makeCard('Runtime');
+        runtime.appendChild(makeInfoLine('Instances:', d.service.instance_count ?? '—'));
+        runtime.appendChild(makeInfoLine('Size:', d.service.instance_size_slug ?? '—'));
+        runtime.appendChild(makeInfoLine('Port:', d.service.http_port ?? '—'));
+        runtime.appendChild(makeInfoLine('Routes:', (d.service.routes || []).map(r => r.path).join(', ') || '—'));
+        const source = d.service.source.type === 'github'
+          ? `${d.service.source.repo}@${d.service.source.branch || 'main'}${d.service.source.dockerfile_path ? ' • ' + d.service.source.dockerfile_path : ''}`
+          : (d.service.source.type === 'image' ? `${d.service.source.repository}:${d.service.source.tag || 'latest'}` : 'Unknown');
+        runtime.appendChild(makeInfoLine('Source:', source));
+
+        const deployment = makeCard('Deployment');
+        deployment.appendChild(makeInfoLine('Phase:', d.deployment.phase || '—'));
+        deployment.appendChild(makeInfoLine('Deployment ID:', d.deployment.id || '—'));
+        deployment.appendChild(makeInfoLine('Commit:', d.deployment.commit || '—'));
+        const eventsDiv = document.createElement('div');
+        eventsDiv.style.marginTop = '0.5rem';
+        const eventsLabel = document.createElement('strong');
+        eventsLabel.textContent = 'Events:';
+        eventsDiv.appendChild(eventsLabel);
+        eventsDiv.appendChild(document.createElement('br'));
+        const events = d.deployment.events || [];
+        if (events.length) {
+          events.forEach((ev, i) => {
+            if (i > 0) eventsDiv.appendChild(document.createElement('br'));
+            eventsDiv.appendChild(document.createTextNode(`${ev.name}: ${ev.status}`));
+          });
+        } else {
+          const none = document.createElement('span');
+          none.style.color = 'var(--text-secondary)';
+          none.textContent = 'None';
+          eventsDiv.appendChild(none);
+        }
+        deployment.appendChild(eventsDiv);
+
+        const envCard = makeCard('Environment');
+        envCard.style.gridColumn = '1 / -1';
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        ['Key', 'Value', 'Scope'].forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        const tbody = document.createElement('tbody');
+        const envs = d.service.envs || [];
+        if (envs.length) {
+          envs.forEach(ev => {
+            const tr = document.createElement('tr');
+            const tdKey = document.createElement('td'); tdKey.textContent = ev.key;
+            const tdVal = document.createElement('td');
+            const code = document.createElement('code');
+            code.textContent = ev.value || '(secret)';
+            tdVal.appendChild(code);
+            const tdScope = document.createElement('td'); tdScope.textContent = ev.scope || '';
+            tr.appendChild(tdKey);
+            tr.appendChild(tdVal);
+            tr.appendChild(tdScope);
+            tbody.appendChild(tr);
+          });
+        } else {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 3;
+          td.style.color = 'var(--text-secondary)';
+          td.textContent = 'None';
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+        }
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        envCard.appendChild(table);
+
+        const ingressCard = makeCard('Ingress');
+        ingressCard.style.gridColumn = '1 / -1';
+        const ingressDiv = document.createElement('div');
+        const ingress = d.ingress || [];
+        if (ingress.length) {
+          ingress.forEach((r, i) => {
+            if (i > 0) ingressDiv.appendChild(document.createElement('br'));
+            ingressDiv.appendChild(document.createTextNode(`${r.match?.path?.prefix || '/'} → ${r.component?.name}`));
+          });
+        } else {
+          const none = document.createElement('span');
+          none.style.color = 'var(--text-secondary)';
+          none.textContent = 'None';
+          ingressDiv.appendChild(none);
+        }
+        ingressCard.appendChild(ingressDiv);
+
+        section.appendChild(overview);
+        section.appendChild(runtime);
+        section.appendChild(deployment);
+        section.appendChild(envCard);
+        section.appendChild(ingressCard);
+        body.appendChild(section);
+
+        const rawCard = makeCard('Raw');
+        rawCard.style.marginTop = '1rem';
+        const pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.maxHeight = '300px';
+        pre.style.overflow = 'auto';
+        pre.style.background = 'var(--bg-primary)';
+        pre.style.padding = '1rem';
+        pre.style.borderRadius = '8px';
+        pre.style.border = '1px solid var(--border)';
+        pre.textContent = JSON.stringify(d, null, 2);
+        rawCard.appendChild(pre);
+        body.appendChild(rawCard);
       } catch (err) {
-        body.innerHTML = `<div style='color: var(--danger)'>Error: ${err.message}</div>`;
+        body.innerHTML = '';
+        const errDiv = document.createElement('div');
+        errDiv.style.color = 'var(--danger)';
+        errDiv.textContent = `Error: ${err.message}`;
+        body.appendChild(errDiv);
       }
     }
 
@@ -823,49 +1101,131 @@
       const target = modal.dataset.target;
       const body = document.getElementById('detailsBody');
       apiFetch(`/containers/${target}`).then(r=>r.json()).then(d=>{
-        const envRows = (d.service.envs || []).map(ev => `
-          <tr class="edit-env-row">
-            <td><input value="${ev.key || ''}" placeholder="KEY" /></td>
-            <td><input value="${ev.value || ''}" placeholder="value" /></td>
-            <td>
-              <select>
-                <option value="RUN_TIME" ${ev.scope==='RUN_TIME'?'selected':''}>RUN_TIME</option>
-                <option value="RUN_AND_BUILD_TIME" ${ev.scope==='RUN_AND_BUILD_TIME'?'selected':''}>RUN_AND_BUILD_TIME</option>
-              </select>
-            </td>
-          </tr>
-        `).join('');
-        body.innerHTML = `
-          <div class="config-section">
-            <div class="config-card">
-              <h3>Scale & Runtime</h3>
-              <div class="form-group"><label>Instance Count</label><input id="edit-instance-count" type="number" min="0" value="${d.service.instance_count ?? 1}" /></div>
-              <div class="form-group"><label>Instance Size Slug</label><input id="edit-instance-size" value="${d.service.instance_size_slug || ''}" /></div>
-              <div class="form-group"><label>HTTP Port</label><input id="edit-http-port" type="number" value="${d.service.http_port ?? ''}" /></div>
-            </div>
-            <div class="config-card" style="grid-column:1 / -1;">
-              <h3>Environment Variables</h3>
-              <table style="width:100%">
-                <thead><tr><th>Key</th><th>Value</th><th>Scope</th></tr></thead>
-                <tbody id="edit-env-tbody">${envRows || '<tr class=\'edit-env-row\'><td><input placeholder="KEY"/></td><td><input placeholder="value"/></td><td><select><option value="RUN_TIME" selected>RUN_TIME</option><option value="RUN_AND_BUILD_TIME">RUN_AND_BUILD_TIME</option></select></td></tr>'}</tbody>
-              </table>
-              <div class="config-actions"><button class="btn-secondary" onclick="addEditEnvRow()">+ Add Variable</button></div>
-            </div>
-          </div>
-        `;
+        body.innerHTML = '';
+        const section = document.createElement('div');
+        section.className = 'config-section';
+
+        const makeCard = (title) => {
+          const card = document.createElement('div');
+          card.className = 'config-card';
+          const h3 = document.createElement('h3');
+          h3.textContent = title;
+          card.appendChild(h3);
+          return card;
+        };
+
+        const makeFormGroup = (labelText, inputEl) => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'form-group';
+          const label = document.createElement('label');
+          label.textContent = labelText;
+          wrapper.appendChild(label);
+          wrapper.appendChild(inputEl);
+          return wrapper;
+        };
+
+        const scaleCard = makeCard('Scale & Runtime');
+        const instanceCount = document.createElement('input');
+        instanceCount.id = 'edit-instance-count';
+        instanceCount.type = 'number';
+        instanceCount.min = '0';
+        instanceCount.value = d.service.instance_count ?? 1;
+        scaleCard.appendChild(makeFormGroup('Instance Count', instanceCount));
+        const instanceSize = document.createElement('input');
+        instanceSize.id = 'edit-instance-size';
+        instanceSize.value = d.service.instance_size_slug || '';
+        scaleCard.appendChild(makeFormGroup('Instance Size Slug', instanceSize));
+        const httpPort = document.createElement('input');
+        httpPort.id = 'edit-http-port';
+        httpPort.type = 'number';
+        httpPort.value = d.service.http_port ?? '';
+        scaleCard.appendChild(makeFormGroup('HTTP Port', httpPort));
+
+        const envCard = makeCard('Environment Variables');
+        envCard.style.gridColumn = '1 / -1';
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        ['Key', 'Value', 'Scope'].forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+        const tbody = document.createElement('tbody');
+        tbody.id = 'edit-env-tbody';
+        const envs = d.service.envs || [];
+        if (envs.length) {
+          envs.forEach(ev => tbody.appendChild(buildEditEnvRow(ev)));
+        } else {
+          tbody.appendChild(buildEditEnvRow({}));
+        }
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        envCard.appendChild(table);
+        const actions = document.createElement('div');
+        actions.className = 'config-actions';
+        const addBtn = document.createElement('button');
+        addBtn.className = 'btn-secondary';
+        addBtn.type = 'button';
+        addBtn.textContent = '+ Add Variable';
+        addBtn.addEventListener('click', addEditEnvRow);
+        actions.appendChild(addBtn);
+        envCard.appendChild(actions);
+
+        section.appendChild(scaleCard);
+        section.appendChild(envCard);
+        body.appendChild(section);
         document.getElementById('detailsEditBtn').style.display = 'none';
         document.getElementById('detailsEditFooter').style.display = 'flex';
       }).catch(err=>{
-        body.innerHTML = `<div style='color: var(--danger)'>Error: ${err.message}</div>`;
+        body.innerHTML = '';
+        const errDiv = document.createElement('div');
+        errDiv.style.color = 'var(--danger)';
+        errDiv.textContent = `Error: ${err.message}`;
+        body.appendChild(errDiv);
       });
     }
 
     function addEditEnvRow(){
       const tb = document.getElementById('edit-env-tbody');
+      tb.appendChild(buildEditEnvRow({}));
+    }
+
+    function buildEditEnvRow(ev = {}){
       const tr = document.createElement('tr');
       tr.className = 'edit-env-row';
-      tr.innerHTML = `<td><input placeholder="KEY"/></td><td><input placeholder="value"/></td><td><select><option value="RUN_TIME" selected>RUN_TIME</option><option value="RUN_AND_BUILD_TIME">RUN_AND_BUILD_TIME</option></select></td>`;
-      tb.appendChild(tr);
+      const tdKey = document.createElement('td');
+      const inputKey = document.createElement('input');
+      inputKey.placeholder = 'KEY';
+      inputKey.value = ev.key || '';
+      tdKey.appendChild(inputKey);
+      const tdVal = document.createElement('td');
+      const inputVal = document.createElement('input');
+      inputVal.placeholder = 'value';
+      inputVal.value = ev.value || '';
+      tdVal.appendChild(inputVal);
+      const tdScope = document.createElement('td');
+      const select = document.createElement('select');
+      const optRun = document.createElement('option');
+      optRun.value = 'RUN_TIME';
+      optRun.textContent = 'RUN_TIME';
+      const optRunBuild = document.createElement('option');
+      optRunBuild.value = 'RUN_AND_BUILD_TIME';
+      optRunBuild.textContent = 'RUN_AND_BUILD_TIME';
+      select.appendChild(optRun);
+      select.appendChild(optRunBuild);
+      if (ev.scope === 'RUN_AND_BUILD_TIME') {
+        optRunBuild.selected = true;
+      } else {
+        optRun.selected = true;
+      }
+      tdScope.appendChild(select);
+      tr.appendChild(tdKey);
+      tr.appendChild(tdVal);
+      tr.appendChild(tdScope);
+      return tr;
     }
 
     function cancelEditDetails(){
@@ -897,7 +1257,7 @@
   </script>
 </head>
 <body>
-  <div class="container">
+  <div id="container" class="container">
     <header>
       <h1>⚡ Admin Portal</h1>
       <p class="subtitle">Container & Service Management Dashboard</p>

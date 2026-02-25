@@ -1,5 +1,6 @@
 package com.krhscougarband.paymentportal.security;
 
+import com.krhscougarband.paymentportal.repositories.RevokedTokenRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,10 +19,12 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final RevokedTokenRepository revokedTokenRepository;
 
-    public JwtFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService) {
+    public JwtFilter(JwtUtil jwtUtil, CustomUserDetailsService userDetailsService, RevokedTokenRepository revokedTokenRepository) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
+        this.revokedTokenRepository = revokedTokenRepository;
     }
 
     @Override
@@ -63,6 +66,14 @@ public class JwtFilter extends OncePerRequestFilter {
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
+                    // Check if token is revoked
+                    String tokenHash = jwtUtil.hashToken(jwt);
+                    if (revokedTokenRepository.existsByTokenHash(tokenHash)) {
+                        // Token is revoked, skip authentication
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                    
                     UserDetails userDetails = userDetailsService.loadUserByUsername(email);
                     
                     if (userDetails == null) {

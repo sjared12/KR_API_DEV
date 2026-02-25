@@ -20,6 +20,6 @@ public class EmailTestController {
     @GetMapping("/test-email")
     public ResponseEntity<String> sendTestEmail(@RequestParam String to) {
         emailService.sendSimpleEmail(to, "Test Email", "This is a test email from your Spring Boot app.");
-        return ResponseEntity.ok("Email sent to " + to);
+        return ResponseEntity.ok("Email sent");
     }
 }

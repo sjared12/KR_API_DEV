@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://apps.dev.krhscougarband.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' https://*; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; base-uri 'self'">
     <title>My Plans - Payment Portal</title>
     <link rel="icon" type="image/svg+xml" href="/payments/favicon.svg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
@@ -47,15 +48,6 @@
         }
         .btn-primary:hover {
             background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
-        }
-        .btn-admin {
-            background-color: #ffc107;
-            color: #333;
-            border: none;
-        }
-        .btn-admin:hover {
-            background-color: #ffb300;
-            color: #333;
         }
         .btn-logout {
             background-color: #dc3545;
@@ -149,11 +141,8 @@
             <span class="navbar-brand"><i class="fas fa-wallet"></i> Payment Portal</span>
             <div class="d-flex align-items-center gap-2">
                 <span class="text-white" id="userEmail">User</span>
-                <a href="/payments/settings" class="btn btn-light btn-sm">
-                    <i class="fas fa-cog"></i> Settings
-                </a>
-                <a href="/payments/admin" class="btn btn-admin btn-sm" style="display: none;" id="adminBtn">
-                    <i class="fas fa-cog"></i> Admin
+                <a href="/payments/dashboard" class="btn btn-light btn-sm">
+                    <i class="fas fa-home"></i> Dashboard
                 </a>
                 <button class="btn btn-logout btn-sm" onclick="logout()">Logout</button>
             </div>
@@ -163,7 +152,7 @@
     <div class="container-fluid">
         <div class="main-content">
             <div class="page-header">
-                <h1><i class="fas fa-credit-card"></i> My Payment Plans</h1>
+                <h1><i class="fas fa-credit-card"></i> My Payments</h1>
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlanModal">
                     <i class="fas fa-plus"></i> Create Plan
                 </button>
@@ -196,6 +185,7 @@
                             <th>Frequency</th>
                             <th>Status</th>
                             <th>Start Date</th>
+                            <th>Next Charge</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -222,10 +212,13 @@
                     <div id="createError" class="error-message"></div>
                     
                     <div class="mb-3">
-                        <label for="planStudent" class="form-label">Student</label>
+                        <label for="planStudent" class="form-label">Student <small class="text-muted">(from your linked students)</small></label>
                         <select id="planStudent" class="form-select">
                             <option value="">Select a student (optional)...</option>
                         </select>
+                        <small class="form-text text-muted">
+                            Add students to your account via <a href="/payments/dashboard" target="_blank">Dashboard → My Profile</a>
+                        </small>
                     </div>
                     
                     <div class="row">

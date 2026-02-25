@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://apps.dev.krhscougarband.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' https://*; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; base-uri 'self'">
+    <title>Dashboard - KR Band</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .user-email {
+            color: #666;
+            font-size: 0.95rem;
+        }
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .logout-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .welcome-section {
+            background: white;
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .welcome-section h2 {
+            color: #333;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .welcome-section p {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            display: block;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        }
+        .card-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-title {
+            color: #333;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+        .card-description {
+            color: #666;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .shop-card .card-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .admin-card .card-icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .profile-card .card-icon {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .admin-portal-card .card-icon {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Profile Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .modal-header h2 {
+            color: #333;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #999;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 0.5rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        /* Student Management Styles */
+        .students-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #f0f0f0;
+        }
+        .students-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .students-header h3 {
+            color: #333;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+        .add-student-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .add-student-btn:hover {
+            background: #5568d3;
+        }
+        .student-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .student-item {
+            background: #f8f9fa;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .student-info {
+            flex: 1;
+        }
+        .student-name {
+            font-weight: 600;
+            color: #333;
+        }
+        .student-id {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .remove-student-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+        .remove-student-btn:hover {
+            background: #c82333;
+        }
+        .student-form {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .student-form.active {
+            display: block;
+        }
+        .student-form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr auto;
+            gap: 0.5rem;
+            align-items: end;
+        }
+        .student-form-row input {
+            padding: 0.5rem;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .student-form-row input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .empty-students {
+            text-align: center;
+            color: #999;
+            padding: 1rem;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1><i class="fas fa-home"></i> Dashboard</h1>
+            <div class="user-info">
+                <span class="user-email" id="userEmail">Loading...</span>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <div class="welcome-section">
+            <h2>Welcome Back!</h2>
+            <p>What would you like to do today?</p>
+        </div>
+
+        <div class="cards-grid">
+            <a href="/payments/shop" class="dashboard-card shop-card">
+                <div class="card-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h3 class="card-title">Shop Items</h3>
+                <p class="card-description">Browse and purchase merchandise, uniforms, instruments, and accessories</p>
+            </a>
+
+            <a href="/payments/user-plans" class="dashboard-card admin-card">
+                <div class="card-icon">
+                    <i class="fas fa-credit-card"></i>
+                </div>
+                <h3 class="card-title">Manage Payments</h3>
+                <p class="card-description">View and manage your payment plans and subscriptions</p>
+            </a>
+
+            <a href="#" class="dashboard-card profile-card" onclick="openProfileModal(event)">
+                <div class="card-icon">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <h3 class="card-title">My Profile</h3>
+                <p class="card-description">Update your personal information and preferences</p>
+            </a>
+
+            <a href="/payments/admin" id="adminPortalCard" class="dashboard-card admin-portal-card" style="display: none;">
+                <div class="card-icon">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <h3 class="card-title">Admin Portal</h3>
+                <p class="card-description">Manage payment plans, users, and system settings</p>
+            </a>
+        </div>
+    </div>
+
+    <!-- Profile Edit Modal -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-edit"></i> Edit Profile</h2>
+                <button class="close-btn" onclick="closeProfileModal()">&times;</button>
+            </div>
+            
+            <div class="success-message" id="profileSuccessMessage">
+                Profile updated successfully!
+            </div>
+            
+            <div class="error-message" id="profileErrorMessage">
+                Error updating profile. Please try again.
+            </div>
+            
+            <form id="profileForm" onsubmit="saveProfile(event)">
+                <div class="form-group">
+                    <label class="form-label" for="profileEmail">Email</label>
+                    <input type="email" id="profileEmail" class="form-input" disabled>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="profileFirstName">First Name</label>
+                    <input type="text" id="profileFirstName" class="form-input" placeholder="Enter your first name">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="profileLastName">Last Name</label>
+                    <input type="text" id="profileLastName" class="form-input" placeholder="Enter your last name">
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeProfileModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+            
+            <!-- Students Management Section -->
+            <div class="students-section">
+                <div class="students-header">
+                    <h3><i class="fas fa-users"></i> My Students</h3>
+                    <button type="button" class="add-student-btn" onclick="toggleAddStudentForm()">
+                        <i class="fas fa-plus"></i> Add Student
+                    </button>
+                </div>
+                
+                <!-- Add Student Form -->
+                <div id="addStudentForm" class="student-form">
+                    <div class="student-form-row">
+                        <div>
+                            <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: #666;">Student ID *</label>
+                            <input type="text" id="newStudentId" placeholder="Student ID">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: #666;">First Name</label>
+                            <input type="text" id="newStudentFirstName" placeholder="First Name">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: #666;">Last Name</label>
+                            <input type="text" id="newStudentLastName" placeholder="Last Name">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.85rem; margin-bottom: 0.25rem; color: #666;">Instrument</label>
+                            <input type="text" id="newStudentInstrument" placeholder="e.g., Trumpet">
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="button" class="btn btn-primary" onclick="addStudent()" style="padding: 0.5rem 1rem; margin: 0;">Add</button>
+                            <button type="button" class="btn btn-secondary" onclick="toggleAddStudentForm()" style="padding: 0.5rem 1rem; margin: 0;">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Student List -->
+                <ul id="studentList" class="student-list">
+                    <li class="empty-students">No students added yet</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let refreshTimer = null;
+        let currentProfileData = null;
+
+        function openProfileModal(event) {
+            event.preventDefault();
+            loadProfileData();
+            document.getElementById('profileModal').style.display = 'block';
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').style.display = 'none';
+            document.getElementById('profileSuccessMessage').style.display = 'none';
+            document.getElementById('profileErrorMessage').style.display = 'none';
+        }
+
+        async function loadProfileData() {
+            const token = localStorage.getItem('AUTH_TOKEN');
+            if (!token) return;
+
+            try {
+                const response = await fetch('/payments/api/profile', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentProfileData = data;
+                    document.getElementById('profileEmail').value = data.email || '';
+                    document.getElementById('profileFirstName').value = data.firstName || '';
+                    document.getElementById('profileLastName').value = data.lastName || '';
+                    
+                    // Load students
+                    renderStudentList(data.students || []);
+                }
+            } catch (error) {
+                console.error('Failed to load profile:', error);
+            }
+        }
+
+        function renderStudentList(students) {
+            const studentList = document.getElementById('studentList');
+            
+            if (!students || students.length === 0) {
+                studentList.innerHTML = '<li class="empty-students">No students added yet</li>';
+                return;
+            }
+            
+            studentList.innerHTML = students.map(student => `
+                <li class="student-item">
+                    <div class="student-info">
+                        <div class="student-name">${student.firstName || ''} ${student.lastName || ''}${student.instrument ? ' - ' + student.instrument : ''}</div>
+                        <div class="student-id">Student ID: ${student.studentId}</div>
+                    </div>
+                    <button class="remove-student-btn" onclick="removeStudent('${student.studentId}')">
+                        <i class="fas fa-trash"></i> Remove
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        function toggleAddStudentForm() {
+            const form = document.getElementById('addStudentForm');
+            form.classList.toggle('active');
+            
+            if (!form.classList.contains('active')) {
+                // Clear form
+                document.getElementById('newStudentId').value = '';
+                document.getElementById('newStudentFirstName').value = '';
+                document.getElementById('newStudentLastName').value = '';
+                document.getElementById('newStudentInstrument').value = '';
+            }
+        }
+
+        async function addStudent() {
+            const token = localStorage.getItem('AUTH_TOKEN');
+            if (!token) return;
+
+            const studentId = document.getElementById('newStudentId').value.trim();
+            const firstName = document.getElementById('newStudentFirstName').value.trim();
+            const lastName = document.getElementById('newStudentLastName').value.trim();
+            const instrument = document.getElementById('newStudentInstrument').value.trim();
+
+            if (!studentId) {
+                alert('Student ID is required');
+                return;
+            }
+
+            try {
+                const response = await fetch('/payments/api/profile/students', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ studentId, firstName, lastName, instrument })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    renderStudentList(data.students || []);
+                    toggleAddStudentForm();
+                    
+                    // Show success message
+                    document.getElementById('profileSuccessMessage').textContent = 'Student added successfully!';
+                    document.getElementById('profileSuccessMessage').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('profileSuccessMessage').style.display = 'none';
+                        document.getElementById('profileSuccessMessage').textContent = 'Profile updated successfully!';
+                    }, 3000);
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to add student');
+                }
+            } catch (error) {
+                console.error('Failed to add student:', error);
+                alert('Error adding student');
+            }
+        }
+
+        async function removeStudent(studentId) {
+            if (!confirm('Are you sure you want to remove this student from your account?')) {
+                return;
+            }
+
+            const token = localStorage.getItem('AUTH_TOKEN');
+            if (!token) return;
+
+            try {
+                const response = await fetch(`/payments/api/profile/students/${studentId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    renderStudentList(data.students || []);
+                    
+                    // Show success message
+                    document.getElementById('profileSuccessMessage').textContent = 'Student removed successfully!';
+                    document.getElementById('profileSuccessMessage').style.display = 'block';
+                    setTimeout(() => {
+                        document.getElementById('profileSuccessMessage').style.display = 'none';
+                        document.getElementById('profileSuccessMessage').textContent = 'Profile updated successfully!';
+                    }, 3000);
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to remove student');
+                }
+            } catch (error) {
+                console.error('Failed to remove student:', error);
+                alert('Error removing student');
+            }
+        }
+
+        async function saveProfile(event) {
+            event.preventDefault();
+            
+            const token = localStorage.getItem('AUTH_TOKEN');
+            if (!token) return;
+
+            const profileData = {
+                firstName: document.getElementById('profileFirstName').value.trim(),
+                lastName: document.getElementById('profileLastName').value.trim()
+            };
+
+            try {
+                const response = await fetch('/payments/api/profile', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profileData)
+                });
+
+                if (response.ok) {
+                    document.getElementById('profileSuccessMessage').style.display = 'block';
+                    document.getElementById('profileErrorMessage').style.display = 'none';
+                    
+                    // Update the user email display if name changed
+                    const data = await response.json();
+                    if (data.firstName || data.lastName) {
+                        const displayName = `${data.firstName} ${data.lastName}`.trim();
+                        if (displayName) {
+                            document.getElementById('userEmail').textContent = `${displayName} (${data.email})`;
+                        }
+                    }
+                    
+                    setTimeout(() => {
+                        closeProfileModal();
+                    }, 2000);
+                } else {
+                    document.getElementById('profileSuccessMessage').style.display = 'none';
+                    document.getElementById('profileErrorMessage').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to save profile:', error);
+                document.getElementById('profileSuccessMessage').style.display = 'none';
+                document.getElementById('profileErrorMessage').style.display = 'block';
+            }
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('profileModal');
+            if (event.target === modal) {
+                closeProfileModal();
+            }
+        }
+
+        async function refreshToken() {
+            try {
+                const refreshToken = localStorage.getItem('REFRESH_TOKEN');
+                if (!refreshToken) {
+                    console.warn('No refresh token available');
+                    return false;
+                }
+
+                const response = await fetch('/payments/api/auth/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken })
+                });
+
+                if (!response.ok) {
+                    console.error('Failed to refresh token');
+                    return false;
+                }
+
+                const data = await response.json();
+                localStorage.setItem('AUTH_TOKEN', data.token);
+                localStorage.setItem('TOKEN_EXPIRES_AT', Date.now() + data.expiresIn);
+                
+                console.log('Token refreshed successfully');
+                setupTokenRefresh(); // Schedule next refresh
+                return true;
+            } catch (error) {
+                console.error('Token refresh error:', error);
+                return false;
+            }
+        }
+
+        function setupTokenRefresh() {
+            // Clear existing timer
+            if (refreshTimer) {
+                clearTimeout(refreshTimer);
+            }
+
+            const expiresAt = localStorage.getItem('TOKEN_EXPIRES_AT');
+            if (!expiresAt) {
+                return;
+            }
+
+            const now = Date.now();
+            const expirationTime = parseInt(expiresAt);
+            const timeUntilExpiry = expirationTime - now;
+            
+            // Refresh 5 minutes (300000ms) before expiration, or immediately if already expired
+            const refreshTime = Math.max(0, timeUntilExpiry - 300000);
+            
+            console.log(`Token refresh scheduled in ${Math.round(refreshTime / 1000 / 60)} minutes`);
+            
+            refreshTimer = setTimeout(async () => {
+                const success = await refreshToken();
+                if (!success) {
+                    console.log('Auto-refresh failed, redirecting to login');
+                    localStorage.clear();
+                    window.location.href = '/payments/login';
+                }
+            }, refreshTime);
+        }
+
+        async function checkAuth() {
+            try {
+                const token = localStorage.getItem('AUTH_TOKEN');
+                if (!token) {
+                    console.log('No token found, redirecting to login');
+                    window.location.href = '/payments/login';
+                    return;
+                }
+
+                // Set up automatic token refresh
+                setupTokenRefresh();
+
+                // If we got here, Spring Security already validated the token
+                // Don't try to fetch /api/auth/me - Cloudflare CSP blocks it anyway
+                console.log('Token exists, assuming valid (Spring Security already verified)');
+                
+                // Try to get user email if possible, but don't fail if it doesn't work
+                try {
+                    const response = await fetch('/payments/api/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const user = await response.json();
+                        const displayName = user.firstName && user.lastName 
+                            ? `${user.firstName} ${user.lastName}` 
+                            : user.firstName || user.lastName || '';
+                        
+                        if (displayName) {
+                            document.getElementById('userEmail').textContent = `${displayName} (${user.email})`;
+                        } else {
+                            document.getElementById('userEmail').textContent = user.email;
+                        }
+                        
+                        // Show admin portal card if user is admin
+                        if (user.role === 'ADMIN') {
+                            document.getElementById('adminPortalCard').style.display = 'block';
+                        }
+                    } else {
+                        document.getElementById('userEmail').textContent = 'User';
+                    }
+                } catch (error) {
+                    // CSP or network error - don't redirect, just show generic user
+                    console.warn('Could not fetch user info (likely CSP blocked):', error);
+                    document.getElementById('userEmail').textContent = 'User';
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                // Don't redirect - if Spring Security let us load this page, token is valid
+                document.getElementById('userEmail').textContent = 'User';
+            }
+        }
+
+        async function logout() {
+            const token = localStorage.getItem('AUTH_TOKEN');
+            
+            // Call logout API to revoke the token
+            if (token) {
+                try {
+                    await fetch('/payments/api/auth/logout', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                } catch (error) {
+                    console.error('Logout API call failed:', error);
+                }
+            }
+            
+            // Clear refresh timer
+            if (refreshTimer) {
+                clearTimeout(refreshTimer);
+            }
+            
+            localStorage.removeItem('AUTH_TOKEN');
+            localStorage.removeItem('REFRESH_TOKEN');
+            localStorage.removeItem('TOKEN_EXPIRES_AT');
+            window.location.href = '/payments/login';
+        }
+
+        document.addEventListener('DOMContentLoaded', checkAuth);
+    </script>
+</body>
+</html>

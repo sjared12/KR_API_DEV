@@ -263,8 +263,17 @@
                     if (method === 'ACH') {
                         setStatus('Bank payment authorized! Funds move in 1-2 business days. Watch for a receipt email when it completes.', 'success');
                         if (data.receiptUrl) {
-                            document.getElementById('achInfo').innerHTML = 'You can check the pending receipt anytime: <a href="' + data.receiptUrl + '" target="_blank" rel="noreferrer">open receipt</a>.';
-                            document.getElementById('achInfo').style.display = 'block';
+                            const achInfo = document.getElementById('achInfo');
+                            achInfo.innerHTML = '';
+                            achInfo.style.display = 'block';
+                            achInfo.appendChild(document.createTextNode('You can check the pending receipt anytime: '));
+                            const link = document.createElement('a');
+                            link.href = data.receiptUrl;
+                            link.target = '_blank';
+                            link.rel = 'noreferrer';
+                            link.textContent = 'open receipt';
+                            achInfo.appendChild(link);
+                            achInfo.appendChild(document.createTextNode('.'));
                         }
                     } else {
                         setStatus('Payment successful! Redirecting to receipt...', 'success');

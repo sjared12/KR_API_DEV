@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Status</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+        
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #2d1810 0%, #1a0f08 50%, #8B6F47 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(212, 175, 55, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3), 
+                        0 0 40px rgba(212, 175, 55, 0.15);
+            max-width: 650px;
+            width: 100%;
+            padding: 50px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        .alert-icon {
+            font-size: 64px;
+            margin-bottom: 25px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        h1 {
+            color: #1a0f08;
+            margin-bottom: 15px;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .subtitle {
+            color: #8B6F47;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+        
+        p {
+            color: #555;
+            margin-bottom: 20px;
+            line-height: 1.8;
+            font-size: 15px;
+            font-weight: 400;
+        }
+        
+        .payment-section {
+            background: linear-gradient(135deg, #f5f2ed 0%, #faf8f3 100%);
+            border: 2px solid #D4AF37;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 35px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .payment-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(212, 175, 55, 0.05) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        
+        .payment-section h2 {
+            color: #1a0f08;
+            font-size: 20px;
+            margin-bottom: 12px;
+            font-weight: 700;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .payment-section p {
+            color: #6b5d4f;
+            font-size: 14px;
+            margin-bottom: 0;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .payment-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #8B6F47 0%, #A0825D 100%);
+            color: white;
+            padding: 14px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 15px;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            margin-top: 20px;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 8px 20px rgba(139, 111, 71, 0.3);
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+        }
+        
+        .payment-link:hover {
+            background: linear-gradient(135deg, #704a28 0%, #8B6F47 100%);
+            box-shadow: 0 12px 30px rgba(139, 111, 71, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .payment-link:active {
+            transform: translateY(0);
+        }
+        
+        .footer {
+            margin-top: 35px;
+            padding-top: 25px;
+            border-top: 1px solid #e5e0d8;
+            color: #999;
+            font-size: 13px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="alert-icon">⚠️</div>
+        <div class="subtitle">System Status Alert</div>
+        <h1>We're Experiencing Issues</h1>
+        
+        <p>We're currently experiencing some issues with accessing student accounts. We sincerely apologize for any inconvenience this may cause, and our team is working around the clock to resolve this.</p>
+        
+        <div class="payment-section">
+            <h2>✓ Payments Still Available</h2>
+            <p>You can still make payments securely using the link below.</p>
+            <a href="https://checkout.square.site/merchant/QDWT7D1HD3GCR/checkout/DL7GT3ATSPE66TJETCEJRHD3" class="payment-link">Proceed to Payment</a>
+        </div>
+        
+        <p>Thank you for your patience and continued support while we work to restore full service.</p>
+        
+        <div class="footer">
+            <p>Last updated: February 13, 2026</p>
+        </div>
+    </div>
+</body>
+</html>

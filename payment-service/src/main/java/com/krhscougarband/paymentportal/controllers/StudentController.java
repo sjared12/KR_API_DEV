@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +29,7 @@ public class StudentController {
 
     // Add student to current user's account
     @PostMapping
+    @Transactional
     public ResponseEntity<?> addStudent(Authentication auth, @RequestBody Map<String, String> body) {
         // ...existing code...
         if (auth == null) {
@@ -37,6 +39,7 @@ public class StudentController {
         String studentId = body.get("studentId");
         String firstName = body.get("firstName");
         String lastName = body.get("lastName");
+        String instrument = body.get("instrument");
 
         if (studentId == null || studentId.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Student ID is required"));
@@ -52,6 +55,7 @@ public class StudentController {
         student.setStudentId(studentId);
         student.setFirstName(firstName);
         student.setLastName(lastName);
+        student.setInstrument(instrument);
 
         // Save student first (without cascading through user)
         student = studentRepository.save(student);
@@ -67,30 +71,49 @@ public class StudentController {
         
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "Student added successfully"));
+        // Return updated student list
+        List<StudentDto> studentDtos = user.getStudents().stream()
+                .map(StudentDto::new)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Student added successfully",
+            "students", studentDtos
+        ));
     }
 
     // Get all students for current user
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> getMyStudents(Authentication auth) {
-        // ...existing code...
         if (auth == null) {
             return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
         }
+        
         User user = userRepository.findByEmailWithStudents(auth.getName())
             .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Debug logging
+        System.out.println("DEBUG - User email: " + user.getEmail());
+        System.out.println("DEBUG - Students count: " + (user.getStudents() != null ? user.getStudents().size() : 0));
+        if (user.getStudents() != null) {
+            user.getStudents().forEach(s -> 
+                System.out.println("DEBUG - Student: " + s.getStudentId() + " - " + s.getFirstName() + " " + s.getLastName())
+            );
+        }
+        
         // Convert to DTOs to avoid serialization issues
         List<StudentDto> studentDtos = user.getStudents() != null 
                 ? user.getStudents().stream()
                     .map(StudentDto::new)
                     .collect(Collectors.toList())
                 : List.of();
+        
         return ResponseEntity.ok(studentDtos);
     }
 
     // Remove student from current user's account
     @DeleteMapping("/{studentId}")
+    @Transactional
     public ResponseEntity<?> removeStudent(Authentication auth, @PathVariable String studentId) {
         User user = userRepository.findByEmailWithStudents(auth.getName())
             .orElseThrow(() -> new RuntimeException("User not found"));
@@ -101,7 +124,15 @@ public class StudentController {
         user.getStudents().remove(student);
         userRepository.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "Student removed from account"));
+        // Return updated student list
+        List<StudentDto> studentDtos = user.getStudents().stream()
+                .map(StudentDto::new)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(Map.of(
+            "message", "Student removed from account",
+            "students", studentDtos
+        ));
     }
 
     // Admin: Get all students for a specific user

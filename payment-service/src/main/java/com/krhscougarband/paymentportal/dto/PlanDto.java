@@ -28,7 +28,9 @@ public class PlanDto {
     private String frequency;
     private String currency;
     private String status;
+    private boolean paused;
     private String startDate;
+    private String nextChargeDate;
     private String studentId;
     private String studentName;
     private String userEmail;

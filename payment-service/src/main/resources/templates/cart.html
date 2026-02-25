@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com https://apps.dev.krhscougarband.org; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; connect-src 'self' https://*; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; base-uri 'self'">
+    <title>Shopping Cart - KR Band Checkout</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.8rem;
+            margin: 0;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            margin-left: 10px;
+        }
+
+        .nav-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .cart-content {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+        }
+
+        .cart-items {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+
+        .cart-summary {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            height: fit-content;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .item-price {
+            color: #764ba2;
+            font-weight: 600;
+        }
+
+        .item-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .quantity-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .qty-btn {
+            width: 32px;
+            height: 32px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .qty-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .quantity {
+            font-weight: 600;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .remove-btn {
+            padding: 8px 16px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .remove-btn:hover {
+            background: #c82333;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .summary-row.total {
+            border-top: 2px solid #eee;
+            padding-top: 15px;
+            font-weight: 700;
+            font-size: 1.3rem;
+            color: #764ba2;
+        }
+
+        .checkout-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .checkout-btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+            transform: translateY(-2px);
+        }
+
+        .checkout-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .empty-cart {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .empty-cart h2 {
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .cart-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛒 Shopping Cart</h1>
+            <div>
+                <a href="/payments/shop" class="nav-btn">Continue Shopping</a>
+                <a href="/payments/orders" class="nav-btn">My Orders</a>
+            </div>
+        </div>
+
+        <div id="emptyCart" class="cart-items" style="display: none;">
+            <div class="empty-cart">
+                <h2>Your cart is empty</h2>
+                <p>Browse items to add to your cart</p>
+                <a href="/payments/shop" class="checkout-btn" style="max-width: 300px; margin: 20px auto; display: block;">
+                    Go to Shop
+                </a>
+            </div>
+        </div>
+
+        <div id="cartContent" class="cart-content" style="display: none;">
+            <div class="cart-items">
+                <h2 style="margin-bottom: 20px;">Cart Items</h2>
+                <div id="cartItemsList"></div>
+            </div>
+
+            <div class="cart-summary">
+                <h2 style="margin-bottom: 20px;">Order Summary</h2>
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span id="subtotal">$0.00</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total:</span>
+                    <span id="total">$0.00</span>
+                </div>
+                <button class="checkout-btn" onclick="placeOrder()">Place Order</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            displayCart();
+        });
+
+        function displayCart() {
+            const emptyCart = document.getElementById('emptyCart');
+            const cartContent = document.getElementById('cartContent');
+
+            if (cart.length === 0) {
+                emptyCart.style.display = 'block';
+                cartContent.style.display = 'none';
+                return;
+            }
+
+            emptyCart.style.display = 'none';
+            cartContent.style.display = 'grid';
+
+            const cartItemsList = document.getElementById('cartItemsList');
+            cartItemsList.innerHTML = cart.map((item, index) => `
+                <div class="cart-item">
+                    <div class="item-info">
+                        <div class="item-name">${item.itemName}</div>
+                        <div class="item-price">$${(item.price / 100).toFixed(2)} each</div>
+                    </div>
+                    <div class="item-controls">
+                        <div class="quantity-controls">
+                            <button class="qty-btn" onclick="updateQuantity(${index}, -1)">-</button>
+                            <span class="quantity">${item.quantity}</span>
+                            <button class="qty-btn" onclick="updateQuantity(${index}, 1)">+</button>
+                        </div>
+                        <button class="remove-btn" onclick="removeItem(${index})">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+
+            updateSummary();
+        }
+
+        function updateQuantity(index, change) {
+            cart[index].quantity += change;
+            if (cart[index].quantity <= 0) {
+                cart.splice(index, 1);
+            }
+            localStorage.setItem('cart', JSON.stringify(cart));
+            displayCart();
+        }
+
+        function removeItem(index) {
+            cart.splice(index, 1);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            displayCart();
+        }
+
+        function updateSummary() {
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            document.getElementById('subtotal').textContent = `$${(subtotal / 100).toFixed(2)}`;
+            document.getElementById('total').textContent = `$${(subtotal / 100).toFixed(2)}`;
+        }
+
+        async function placeOrder() {
+            if (cart.length === 0) return;
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Placing Order...';
+
+            try {
+                // Validate cart items have required fields
+                const orderItems = cart.filter(item => item.itemId && item.quantity > 0).map(item => ({
+                    itemId: String(item.itemId),
+                    quantity: parseInt(item.quantity) || 1
+                }));
+
+                if (orderItems.length === 0) {
+                    throw new Error('Invalid cart items. Please refresh and try again.');
+                }
+
+                const body = JSON.stringify({ items: orderItems });
+                console.log('Sending order:', body);
+
+                const response = await fetch('/payments/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem("AUTH_TOKEN")}`
+                    },
+                    body: body
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = '/payments/';
+                        return;
+                    }
+                    // Try to parse error response, but handle non-JSON responses
+                    let errorMessage = 'Failed to place order';
+                    try {
+                        const error = await response.json();
+                        errorMessage = error.message || error.error || errorMessage;
+                    } catch (parseError) {
+                        // Response is not JSON, use status text
+                        errorMessage = `Failed to place order: ${response.status} ${response.statusText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const order = await response.json();
+                localStorage.removeItem('cart');
+                cart = [];
+                alert(`Order placed successfully! Order #${order.orderNumber}`);
+                window.location.href = '/payments/orders';
+            } catch (error) {
+                console.error('Error placing order:', error);
+                alert('Failed to place order: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'Place Order';
+            }
+        }
+    </script>
+</body>
+</html>

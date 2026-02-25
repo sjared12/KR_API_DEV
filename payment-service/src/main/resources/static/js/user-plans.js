@@ -1,29 +1,59 @@
-function getToken() {
-    return localStorage.getItem('jwt');
-}
-let token = getToken();
-
-// Global fetch wrapper to handle token expiration
-async function fetchWithAuth(url, options = {}) {
-    if (!options.headers) options.headers = {};
-    const jwt = getToken();
-    if (jwt) {
-        options.headers['Authorization'] = `Bearer ${jwt}`;
+// Check authentication on page load
+async function checkAuthentication() {
+    const token = localStorage.getItem('AUTH_TOKEN');
+    if (!token) {
+        window.location.href = '/payments/';
+        return false;
     }
-    const response = await fetch(url, options);
+    
+    try {
+        const response = await fetch('/payments/api/auth/me', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        if (!response.ok) {
+            localStorage.removeItem('AUTH_TOKEN');
+            window.location.href = '/payments/';
+            return false;
+        }
+        return true;
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        window.location.href = '/payments/';
+        return false;
+    }
+}
+
+// Helper function to get auth token
+function getToken() {
+    return localStorage.getItem('AUTH_TOKEN');
+}
+
+// Global fetch wrapper to use JWT authentication
+async function fetchWithAuth(url, options = {}) {
+    const token = localStorage.getItem('AUTH_TOKEN');
+    if (!token) {
+        window.location.href = '/payments/';
+        return null;
+    }
+    
+    const headers = {
+        ...options.headers,
+        'Authorization': `Bearer ${token}`
+    };
+    
+    const response = await fetch(url, {
+        ...options,
+        headers
+    });
+    
     if (response.status === 401 || response.status === 403) {
-        logout();
+        localStorage.removeItem('AUTH_TOKEN');
+        window.location.href = '/payments/';
         return Promise.reject('Session expired');
     }
     return response;
-}
-
-// Check authentication and redirect if not logged in
-function checkAuth() {
-    if (!token) {
-        window.location.href = '/payments';
-        return;
-    }
 }
 
 // Get current user and check if admin
@@ -42,11 +72,10 @@ async function getCurrentUser() {
         const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
         document.getElementById('userEmail').textContent = fullName || user.email;
         
-        // Show admin button if user is admin or refund approver
-        if (user.role === 'ADMIN' || user.role === 'REFUND_APPROVER') {
-            document.getElementById('adminBtn').style.display = 'inline-block';
-        }
+        console.log('User data from /api/auth/me:', user);
+        console.log('User role:', user.role);
         
+
         return user;
     } catch (error) {
         console.error('Error getting user:', error);
@@ -76,13 +105,20 @@ async function loadStudentsForDropdown() {
             select.remove(1);
         }
         
-        // Add students
-        students.forEach(student => {
-            const option = document.createElement('option');
-            option.value = student.studentId;
-            option.textContent = `${student.firstName} ${student.lastName} (#${student.studentId})`;
-            select.appendChild(option);
-        });
+        // Update placeholder text based on whether students exist
+        if (students.length === 0) {
+            select.options[0].textContent = 'No students linked - Add students in Dashboard → My Profile';
+        } else {
+            select.options[0].textContent = 'Select a student (optional)...';
+            
+            // Add students
+            students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.studentId;
+                option.textContent = `${student.firstName} ${student.lastName} (#${student.studentId})`;
+                select.appendChild(option);
+            });
+        }
     } catch (error) {
         console.error('Error loading students:', error);
     }
@@ -142,7 +178,8 @@ function displayPlans(plans) {
         const amountPaid = (amountPaidCents / 100).toFixed(2);
         const progressPercent = totalOwedCents > 0 ? Math.min(100, Math.round((amountPaidCents / totalOwedCents) * 100)) : 0;
         const startDate = plan.startDate ? new Date(plan.startDate).toLocaleDateString() : 'N/A';
-        const statusBadge = renderStatusBadge(plan.status);
+        const nextChargeDate = plan.nextChargeDate && plan.frequency !== 'ONE_TIME' ? new Date(plan.nextChargeDate).toLocaleDateString() : 'N/A';
+        const statusBadge = plan.paused ? '<span class="badge bg-warning text-dark">PAUSED</span>' : renderStatusBadge(plan.status);
         const studentDisplay = plan.studentName ? `${plan.studentName} (#${plan.studentId})` : 'No student assigned';
         
         row.innerHTML = `
@@ -157,6 +194,7 @@ function displayPlans(plans) {
             <td>${plan.frequency}</td>
             <td>${statusBadge}</td>
             <td>${startDate}</td>
+            <td>${nextChargeDate}</td>
             <td>
                 <button class="btn btn-sm btn-primary" onclick="openPaymentModal('${plan.id}')" style="margin-right: 0.25rem;">
                     <i class="fas fa-eye"></i> View Details
@@ -189,7 +227,7 @@ async function cancelPlan(planId, button) {
     
     try {
         button.disabled = true;
-        const res = await fetch(`/payments/api/plans/${planId}`, {
+        const res = await fetch(`/api/plans/${planId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${getToken()}` }
         });
@@ -576,14 +614,14 @@ async function cancelPlanFromModal() {
 
 // Logout
 function logout() {
-    localStorage.removeItem('jwt');
-    window.location.href = '/payments';
+    window.location.href = '/payments/api/auth/logout';
 }
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
-    checkAuth();
-    getCurrentUser();
-    loadStudentsForDropdown();
-    fetchPlans();
+checkAuthentication().then(async (isAuthenticated) => {
+    if (!isAuthenticated) return;
+    
+    await getCurrentUser();
+    await loadStudentsForDropdown();
+    await fetchPlans();
 });

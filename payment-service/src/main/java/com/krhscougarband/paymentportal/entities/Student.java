@@ -18,6 +18,7 @@ public class Student {
     
     private String firstName;
     private String lastName;
+    private String instrument; // Instrument played by this student
     
     @JsonIgnore
     @ManyToMany(mappedBy = "students")

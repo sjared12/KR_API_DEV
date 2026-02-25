@@ -1195,33 +1195,53 @@
                 const totalAmount = (subsResponse.content || []).reduce((sum, s) => sum + (s.amountPaid || 0), 0);
                 const totalRefunded = (refundsResponse.content || []).reduce((sum, r) => sum + (r.approvedAmount || 0), 0);
 
-                document.getElementById('statsGrid').innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-label">Active Subscriptions</div>
-                        <div class="stat-value">${activeCount}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Pending Approvals</div>
-                        <div class="stat-value">${pendingRefunds}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Amount Paid</div>
-                        <div class="stat-value">${formatCurrency(totalAmount)}</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Total Refunded</div>
-                        <div class="stat-value">${formatCurrency(totalRefunded)}</div>
-                    </div>
-                `;
+                                const statsGrid = document.getElementById('statsGrid');
+                                statsGrid.innerHTML = '';
+                                const statCards = [
+                                    { label: 'Active Subscriptions', value: activeCount },
+                                    { label: 'Pending Approvals', value: pendingRefunds },
+                                    { label: 'Total Amount Paid', value: formatCurrency(totalAmount) },
+                                    { label: 'Total Refunded', value: formatCurrency(totalRefunded) }
+                                ];
+                                statCards.forEach(card => {
+                                    const div = document.createElement('div');
+                                    div.className = 'stat-card';
+                                    const labelDiv = document.createElement('div');
+                                    labelDiv.className = 'stat-label';
+                                    labelDiv.textContent = card.label;
+                                    const valueDiv = document.createElement('div');
+                                    valueDiv.className = 'stat-value';
+                                    valueDiv.textContent = card.value;
+                                    div.appendChild(labelDiv);
+                                    div.appendChild(valueDiv);
+                                    statsGrid.appendChild(div);
+                                });
 
-                const recent = (subsResponse.content || []).slice(0, 5);
-                document.getElementById('recentActivity').innerHTML = recent.length > 0 
-                    ? `<ul style="list-style: none;">${recent.map(s => 
-                        `<li style="padding: 10px; border-bottom: 1px solid #ecf0f1;">
-                            ${s.customerEmail} - ${formatCurrency(s.amountPaid || 0)} 
-                            <span class="status-badge ${getStatusClass(s.status)}">${s.status}</span>
-                        </li>`).join('')}</ul>`
-                    : '<p style="text-align: center; color: #7f8c8d;">No recent activity</p>';
+                                const recent = (subsResponse.content || []).slice(0, 5);
+                                const recentActivity = document.getElementById('recentActivity');
+                                recentActivity.innerHTML = '';
+                                if (recent.length > 0) {
+                                    const ul = document.createElement('ul');
+                                    ul.style.listStyle = 'none';
+                                    recent.forEach(s => {
+                                        const li = document.createElement('li');
+                                        li.style.padding = '10px';
+                                        li.style.borderBottom = '1px solid #ecf0f1';
+                                        li.textContent = `${s.customerEmail} - ${formatCurrency(s.amountPaid || 0)} `;
+                                        const statusSpan = document.createElement('span');
+                                        statusSpan.className = 'status-badge ' + getStatusClass(s.status);
+                                        statusSpan.textContent = s.status;
+                                        li.appendChild(statusSpan);
+                                        ul.appendChild(li);
+                                    });
+                                    recentActivity.appendChild(ul);
+                                } else {
+                                    const p = document.createElement('p');
+                                    p.style.textAlign = 'center';
+                                    p.style.color = '#7f8c8d';
+                                    p.textContent = 'No recent activity';
+                                    recentActivity.appendChild(p);
+                                }
 
             } catch (error) {
                 showAlert('error', 'Failed to load stats: ' + error.message);
@@ -1248,39 +1268,59 @@
 
                 const tbody = document.getElementById('subscriptionsBody');
                 tbody.innerHTML = '';
-
                 if (!data.content || data.content.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">No subscriptions found</td></tr>';
+                    const tr = document.createElement('tr');
+                    const td = document.createElement('td');
+                    td.colSpan = 8;
+                    td.style.textAlign = 'center';
+                    td.style.padding = '40px';
+                    td.textContent = 'No subscriptions found';
+                    tr.appendChild(td);
+                    tbody.appendChild(tr);
                     document.getElementById('subscriptionsPagination').innerHTML = '';
                     return;
                 }
 
-                console.log('Rendering subscriptions:', data.content.length);
                 data.content.forEach((sub, idx) => {
-                    console.log(`Sub ${idx}:`, sub.id, sub.customerEmail, sub.status);
                     const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${sub.id}</td>
-                        <td>${sub.customerName || 'N/A'}</td>
-                        <td>${sub.customerEmail || 'N/A'}</td>
-                        <td>${formatCurrency(sub.amount || 0)}</td>
-                        <td><span class="status-badge ${getStatusClass(sub.status)}">${sub.status || 'UNKNOWN'}</span></td>
-                        <td>${sub.squareSubscriptionId || 'N/A'}</td>
-                        <td>${formatDate(sub.createdAt) || 'N/A'}</td>
-                        <td>
-                            <button class="btn btn-primary btn-small" onclick="viewSubscriptionDetails(${sub.id})">View</button>
-                        </td>
-                    `;
+                    const tdId = document.createElement('td'); tdId.textContent = sub.id;
+                    const tdName = document.createElement('td'); tdName.textContent = sub.customerName || 'N/A';
+                    const tdEmail = document.createElement('td'); tdEmail.textContent = sub.customerEmail || 'N/A';
+                    const tdAmount = document.createElement('td'); tdAmount.textContent = formatCurrency(sub.amount || 0);
+                    const tdStatus = document.createElement('td');
+                    const statusSpan = document.createElement('span');
+                    statusSpan.className = 'status-badge ' + getStatusClass(sub.status);
+                    statusSpan.textContent = sub.status || 'UNKNOWN';
+                    tdStatus.appendChild(statusSpan);
+                    const tdSubId = document.createElement('td'); tdSubId.textContent = sub.squareSubscriptionId || 'N/A';
+                    const tdCreated = document.createElement('td'); tdCreated.textContent = formatDate(sub.createdAt) || 'N/A';
+                    const tdBtn = document.createElement('td');
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-primary btn-small';
+                    btn.textContent = 'View';
+                    btn.onclick = () => viewSubscriptionDetails(sub.id);
+                    tdBtn.appendChild(btn);
+                    row.appendChild(tdId);
+                    row.appendChild(tdName);
+                    row.appendChild(tdEmail);
+                    row.appendChild(tdAmount);
+                    row.appendChild(tdStatus);
+                    row.appendChild(tdSubId);
+                    row.appendChild(tdCreated);
+                    row.appendChild(tdBtn);
                     tbody.appendChild(row);
-                    console.log(`Appended row for sub ${sub.id}`);
                 });
 
                 // Pagination
-                let paginationHtml = '';
+                const subscriptionsPagination = document.getElementById('subscriptionsPagination');
+                subscriptionsPagination.innerHTML = '';
                 for (let i = 0; i < data.totalPages; i++) {
-                    paginationHtml += `<button onclick="loadSubscriptions(${i})" class="${i === page ? 'active' : ''}">${i + 1}</button>`;
+                  const btn = document.createElement('button');
+                  btn.textContent = (i + 1);
+                  btn.className = i === page ? 'active' : '';
+                  btn.onclick = () => loadSubscriptions(i);
+                  subscriptionsPagination.appendChild(btn);
                 }
-                document.getElementById('subscriptionsPagination').innerHTML = paginationHtml;
                 state.subscriptionsPage = page;
 
             } catch (error) {
@@ -1328,17 +1368,36 @@
                     squareCustomerId: uniqueCustomers[email]
                 }));
                 
+                suggestionsDiv.innerHTML = '';
                 if (customerCache.length === 0) {
-                    suggestionsDiv.innerHTML = `<div style="padding: 10px; color: #7f8c8d;">No matching customers found</div>`;
+                    const msg = document.createElement('div');
+                    msg.style.padding = '10px';
+                    msg.style.color = '#7f8c8d';
+                    msg.textContent = 'No matching customers found';
+                    suggestionsDiv.appendChild(msg);
                 } else {
-                    suggestionsDiv.innerHTML = customerCache
-                        .map(customer => `<div style="padding: 10px; cursor: pointer; border-bottom: 1px solid #ecf0f1; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''" onclick="selectCustomer('${customer.email}', '${customer.squareCustomerId}')">${customer.email}</div>`)
-                        .join('');
+                    customerCache.forEach(customer => {
+                        const item = document.createElement('div');
+                        item.style.padding = '10px';
+                        item.style.cursor = 'pointer';
+                        item.style.borderBottom = '1px solid #ecf0f1';
+                        item.style.transition = 'background 0.2s';
+                        item.textContent = customer.email;
+                        item.addEventListener('mouseover', () => { item.style.background = '#f5f5f5'; });
+                        item.addEventListener('mouseout', () => { item.style.background = ''; });
+                        item.addEventListener('click', () => selectCustomer(customer.email, customer.squareCustomerId));
+                        suggestionsDiv.appendChild(item);
+                    });
                 }
                 suggestionsDiv.style.display = 'block';
             } catch (error) {
                 console.error('Error searching customers:', error);
-                suggestionsDiv.innerHTML = `<div style="padding: 10px; color: #e74c3c;">Error loading customers</div>`;
+                suggestionsDiv.innerHTML = '';
+                const msg = document.createElement('div');
+                msg.style.padding = '10px';
+                msg.style.color = '#e74c3c';
+                msg.textContent = 'Error loading customers';
+                suggestionsDiv.appendChild(msg);
                 suggestionsDiv.style.display = 'block';
             }
         });
@@ -1472,36 +1531,85 @@
                 const remaining = totalAmount - amountPaid;
                 const percentPaid = totalAmount > 0 ? (amountPaid / totalAmount * 100).toFixed(1) : 0;
                 
-                details.innerHTML = `
-                    <div style="margin-bottom: 15px;">
-                        <p><strong>ID:</strong> ${data.id}</p>
-                        <p><strong>Customer Name:</strong> ${data.customerName || 'N/A'}</p>
-                        <p><strong>Customer Email:</strong> ${data.customerEmail}</p>
-                        <p><strong>Status:</strong> <span class="status-badge ${getStatusClass(data.status)}">${data.status}</span></p>
-                        
-                        <div style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                            <h4 style="margin-bottom: 10px; color: #2c3e50;">Payment Progress</h4>
-                            <div style="background: #e9ecef; border-radius: 10px; height: 24px; overflow: hidden; margin-bottom: 10px;">
-                                <div style="background: ${remaining <= 0 ? '#28a745' : '#667eea'}; height: 100%; width: ${percentPaid}%; transition: width 0.3s;"></div>
-                            </div>
-                            <p><strong>Total Amount Owed:</strong> ${formatCurrency(totalAmount)}</p>
-                            <p><strong>Amount Paid:</strong> ${formatCurrency(amountPaid)} (${percentPaid}%)</p>
-                            <p><strong>Remaining Balance:</strong> ${formatCurrency(Math.max(0, remaining))}</p>
-                        </div>
-                        
-                        <h4 style="margin: 15px 0 10px; color: #2c3e50;">Payment Plan Details</h4>
-                        <p><strong>Amount Per Payment:</strong> ${data.amountPerPayment ? formatCurrency(data.amountPerPayment) : 'N/A'}</p>
-                        <p><strong>Payment Frequency:</strong> ${data.frequency || 'N/A'}</p>
-                        <p><strong>Number of Payments:</strong> ${data.numberOfPayments || 'N/A'}</p>
-                        <p><strong>Estimated End Date:</strong> ${data.estimatedEndDate ? formatDate(data.estimatedEndDate) : 'N/A'}</p>
-                        
-                        <h4 style="margin: 15px 0 10px; color: #2c3e50;">Square Integration</h4>
-                        <p><strong>Square Subscription ID:</strong> ${data.squareSubscriptionId || 'N/A'}</p>
-                        <p><strong>Square Customer ID:</strong> ${data.squareCustomerId}</p>
-                        <p><strong>Created:</strong> ${formatDate(data.createdAt)}</p>
-                        <p><strong>Last Updated:</strong> ${formatDate(data.updatedAt)}</p>
-                    </div>
-                `;
+                details.innerHTML = '';
+                const wrapper = document.createElement('div');
+                wrapper.style.marginBottom = '15px';
+
+                const createLabeledP = (label, value) => {
+                    const p = document.createElement('p');
+                    const strong = document.createElement('strong');
+                    strong.textContent = label;
+                    p.appendChild(strong);
+                    p.appendChild(document.createTextNode(' '));
+                    if (value instanceof Node) {
+                        p.appendChild(value);
+                    } else {
+                        p.appendChild(document.createTextNode(value));
+                    }
+                    return p;
+                };
+
+                wrapper.appendChild(createLabeledP('ID:', data.id));
+                wrapper.appendChild(createLabeledP('Customer Name:', data.customerName || 'N/A'));
+                wrapper.appendChild(createLabeledP('Customer Email:', data.customerEmail || 'N/A'));
+                const statusSpan = document.createElement('span');
+                statusSpan.className = 'status-badge ' + getStatusClass(data.status);
+                statusSpan.textContent = data.status;
+                wrapper.appendChild(createLabeledP('Status:', statusSpan));
+
+                const progress = document.createElement('div');
+                progress.style.margin = '20px 0';
+                progress.style.padding = '15px';
+                progress.style.background = '#f8f9fa';
+                progress.style.borderRadius = '8px';
+                const progressTitle = document.createElement('h4');
+                progressTitle.style.marginBottom = '10px';
+                progressTitle.style.color = '#2c3e50';
+                progressTitle.textContent = 'Payment Progress';
+                progress.appendChild(progressTitle);
+                const barOuter = document.createElement('div');
+                barOuter.style.background = '#e9ecef';
+                barOuter.style.borderRadius = '10px';
+                barOuter.style.height = '24px';
+                barOuter.style.overflow = 'hidden';
+                barOuter.style.marginBottom = '10px';
+                const barInner = document.createElement('div');
+                barInner.style.background = remaining <= 0 ? '#28a745' : '#667eea';
+                barInner.style.height = '100%';
+                barInner.style.width = `${percentPaid}%`;
+                barInner.style.transition = 'width 0.3s';
+                barOuter.appendChild(barInner);
+                progress.appendChild(barOuter);
+
+                progress.appendChild(createLabeledP('Total Amount Owed:', formatCurrency(totalAmount)));
+                progress.appendChild(createLabeledP('Amount Paid:', `${formatCurrency(amountPaid)} (${percentPaid}%)`));
+                progress.appendChild(createLabeledP('Remaining Balance:', formatCurrency(Math.max(0, remaining))));
+
+                wrapper.appendChild(progress);
+
+                const planHeader = document.createElement('h4');
+                planHeader.style.margin = '15px 0 10px';
+                planHeader.style.color = '#2c3e50';
+                planHeader.textContent = 'Payment Plan Details';
+                wrapper.appendChild(planHeader);
+
+                wrapper.appendChild(createLabeledP('Amount Per Payment:', data.amountPerPayment ? formatCurrency(data.amountPerPayment) : 'N/A'));
+                wrapper.appendChild(createLabeledP('Payment Frequency:', data.frequency || 'N/A'));
+                wrapper.appendChild(createLabeledP('Number of Payments:', data.numberOfPayments || 'N/A'));
+                wrapper.appendChild(createLabeledP('Estimated End Date:', data.estimatedEndDate ? formatDate(data.estimatedEndDate) : 'N/A'));
+
+                const squareHeader = document.createElement('h4');
+                squareHeader.style.margin = '15px 0 10px';
+                squareHeader.style.color = '#2c3e50';
+                squareHeader.textContent = 'Square Integration';
+                wrapper.appendChild(squareHeader);
+
+                wrapper.appendChild(createLabeledP('Square Subscription ID:', data.squareSubscriptionId || 'N/A'));
+                wrapper.appendChild(createLabeledP('Square Customer ID:', data.squareCustomerId || 'N/A'));
+                wrapper.appendChild(createLabeledP('Created:', formatDate(data.createdAt)));
+                wrapper.appendChild(createLabeledP('Last Updated:', formatDate(data.updatedAt)));
+
+                details.appendChild(wrapper);
                 document.getElementById('currentSubscriptionId').value = id;
                 openModal('subscriptionDetailsModal');
             } catch (error) {
@@ -1546,7 +1654,14 @@
                 tbody.innerHTML = '';
 
                 if (!data.content || data.content.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">No refunds found</td></tr>';
+                    const tr = document.createElement('tr');
+                    const td = document.createElement('td');
+                    td.colSpan = 8;
+                    td.style.textAlign = 'center';
+                    td.style.padding = '40px';
+                    td.textContent = 'No refunds found';
+                    tr.appendChild(td);
+                    tbody.appendChild(tr);
                     document.getElementById('refundsPagination').innerHTML = '';
                     return;
                 }
@@ -1554,27 +1669,48 @@
                 data.content.forEach(refund => {
                     const row = document.createElement('tr');
                     const fee = Math.round(refund.requestedAmount * 0.025);
-                    row.innerHTML = `
-                        <td>${refund.id}</td>
-                        <td>${refund.subscriptionId}</td>
-                        <td>${formatCurrency(refund.requestedAmount)}</td>
-                        <td><span class="status-badge ${getStatusClass(refund.status)}">${refund.status}</span></td>
-                        <td>${formatCurrency(fee)}</td>
-                        <td>${refund.approvedByUser || '-'}</td>
-                        <td>${formatDate(refund.createdAt)}</td>
-                        <td>
-                            ${refund.status === 'PENDING_APPROVAL' ? `<button class="btn btn-warning btn-small" onclick="openApproveModal(${refund.id}, ${refund.requestedAmount})">Review</button>` : '-'}
-                        </td>
-                    `;
+                    const tdId = document.createElement('td'); tdId.textContent = refund.id;
+                    const tdSubId = document.createElement('td'); tdSubId.textContent = refund.subscriptionId;
+                    const tdAmount = document.createElement('td'); tdAmount.textContent = formatCurrency(refund.requestedAmount);
+                    const tdStatus = document.createElement('td');
+                    const statusSpan = document.createElement('span');
+                    statusSpan.className = 'status-badge ' + getStatusClass(refund.status);
+                    statusSpan.textContent = refund.status;
+                    tdStatus.appendChild(statusSpan);
+                    const tdFee = document.createElement('td'); tdFee.textContent = formatCurrency(fee);
+                    const tdApproved = document.createElement('td'); tdApproved.textContent = refund.approvedByUser || '-';
+                    const tdCreated = document.createElement('td'); tdCreated.textContent = formatDate(refund.createdAt);
+                    const tdBtn = document.createElement('td');
+                    if (refund.status === 'PENDING_APPROVAL') {
+                      const btn = document.createElement('button');
+                      btn.className = 'btn btn-warning btn-small';
+                      btn.textContent = 'Review';
+                      btn.onclick = () => openApproveModal(refund.id, refund.requestedAmount);
+                      tdBtn.appendChild(btn);
+                    } else {
+                      tdBtn.textContent = '-';
+                    }
+                    row.appendChild(tdId);
+                    row.appendChild(tdSubId);
+                    row.appendChild(tdAmount);
+                    row.appendChild(tdStatus);
+                    row.appendChild(tdFee);
+                    row.appendChild(tdApproved);
+                    row.appendChild(tdCreated);
+                    row.appendChild(tdBtn);
                     tbody.appendChild(row);
                 });
 
                 // Pagination
-                let paginationHtml = '';
+                const refundsPagination = document.getElementById('refundsPagination');
+                refundsPagination.innerHTML = '';
                 for (let i = 0; i < data.totalPages; i++) {
-                    paginationHtml += `<button onclick="loadRefunds(${i})" class="${i === page ? 'active' : ''}">${i + 1}</button>`;
+                  const btn = document.createElement('button');
+                  btn.textContent = (i + 1);
+                  btn.className = i === page ? 'active' : '';
+                  btn.onclick = () => loadRefunds(i);
+                  refundsPagination.appendChild(btn);
                 }
-                document.getElementById('refundsPagination').innerHTML = paginationHtml;
                 state.refundsPage = page;
 
             } catch (error) {
@@ -1591,7 +1727,11 @@
             apiCall('GET', '/subscriptions?size=100')
                 .then(data => {
                     const select = document.getElementById('refundSubscriptionId');
-                    select.innerHTML = '<option value="">Select a subscription...</option>';
+                    select.innerHTML = '';
+                    const placeholder = document.createElement('option');
+                    placeholder.value = '';
+                    placeholder.textContent = 'Select a subscription...';
+                    select.appendChild(placeholder);
                     (data.content || []).forEach(sub => {
                         const option = document.createElement('option');
                         option.value = sub.id;
@@ -1675,17 +1815,26 @@
 
                 (usersData || []).forEach(user => {
                     const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${user.id}</td>
-                        <td>${user.username}</td>
-                        <td>${user.email}</td>
-                        <td>${user.active ? '✓' : '✗'}</td>
-                        <td>${(user.permissions || []).slice(0, 2).join(', ')}${(user.permissions || []).length > 2 ? '...' : ''}</td>
-                        <td>${user.lastLogin ? formatDate(user.lastLogin) : 'Never'}</td>
-                        <td>
-                            <button class="btn btn-secondary btn-small" onclick="editUser(${user.id})">Edit</button>
-                        </td>
-                    `;
+                    const tdId = document.createElement('td'); tdId.textContent = user.id;
+                    const tdUsername = document.createElement('td'); tdUsername.textContent = user.username;
+                    const tdEmail = document.createElement('td'); tdEmail.textContent = user.email;
+                    const tdActive = document.createElement('td'); tdActive.textContent = user.active ? '✓' : '✗';
+                    const tdPerms = document.createElement('td');
+                    tdPerms.textContent = (user.permissions || []).slice(0, 2).join(', ') + ((user.permissions || []).length > 2 ? '...' : '');
+                    const tdLastLogin = document.createElement('td'); tdLastLogin.textContent = user.lastLogin ? formatDate(user.lastLogin) : 'Never';
+                    const tdBtn = document.createElement('td');
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-secondary btn-small';
+                    btn.textContent = 'Edit';
+                    btn.onclick = () => editUser(user.id);
+                    tdBtn.appendChild(btn);
+                    row.appendChild(tdId);
+                    row.appendChild(tdUsername);
+                    row.appendChild(tdEmail);
+                    row.appendChild(tdActive);
+                    row.appendChild(tdPerms);
+                    row.appendChild(tdLastLogin);
+                    row.appendChild(tdBtn);
                     tbody.appendChild(row);
                 });
 
@@ -1698,22 +1847,37 @@
                     const fee = Math.round(refund.requestedAmount * 0.025);
                     const net = refund.requestedAmount - fee;
                     const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${refund.id}</td>
-                        <td>${refund.subscriptionId}</td>
-                        <td>${formatCurrency(refund.requestedAmount)}</td>
-                        <td>${formatCurrency(fee)}</td>
-                        <td>${formatCurrency(net)}</td>
-                        <td>${refund.requestedByUser}</td>
-                        <td>
-                            <button class="btn btn-warning btn-small" onclick="openApproveModal(${refund.id}, ${refund.requestedAmount})">Review</button>
-                        </td>
-                    `;
+                    const tdId = document.createElement('td'); tdId.textContent = refund.id;
+                    const tdSubId = document.createElement('td'); tdSubId.textContent = refund.subscriptionId;
+                    const tdAmount = document.createElement('td'); tdAmount.textContent = formatCurrency(refund.requestedAmount);
+                    const tdFee = document.createElement('td'); tdFee.textContent = formatCurrency(fee);
+                    const tdNet = document.createElement('td'); tdNet.textContent = formatCurrency(net);
+                    const tdRequestedBy = document.createElement('td'); tdRequestedBy.textContent = refund.requestedByUser;
+                    const tdBtn = document.createElement('td');
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-warning btn-small';
+                    btn.textContent = 'Review';
+                    btn.onclick = () => openApproveModal(refund.id, refund.requestedAmount);
+                    tdBtn.appendChild(btn);
+                    row.appendChild(tdId);
+                    row.appendChild(tdSubId);
+                    row.appendChild(tdAmount);
+                    row.appendChild(tdFee);
+                    row.appendChild(tdNet);
+                    row.appendChild(tdRequestedBy);
+                    row.appendChild(tdBtn);
                     pendingBody.appendChild(row);
                 });
 
                 if (!refundsData.content || refundsData.content.length === 0) {
-                    pendingBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No pending approvals</td></tr>';
+                    const tr = document.createElement('tr');
+                    const td = document.createElement('td');
+                    td.colSpan = 7;
+                    td.style.textAlign = 'center';
+                    td.style.padding = '20px';
+                    td.textContent = 'No pending approvals';
+                    tr.appendChild(td);
+                    pendingBody.appendChild(tr);
                 }
             } catch (error) {
                 showAlert('error', 'Failed to load admin panel: ' + error.message);
@@ -1734,13 +1898,34 @@
                         const permCode = perm.code || perm;
                         const permName = perm.name || perm;
                         const permDesc = perm.description || '';
-                        permList.innerHTML += `
-                            <div class="permission-item" style="margin-bottom: 10px; padding: 8px; background: #f5f5f5; border-radius: 4px;">
-                                <input type="checkbox" id="perm_${permCode}" value="${permCode}">
-                                <label for="perm_${permCode}" style="margin-left: 8px; font-weight: 500; cursor: pointer;">${permName}</label>
-                                ${permDesc ? `<small style="display: block; margin-left: 24px; color: #7f8c8d; margin-top: 2px;">${permDesc}</small>` : ''}
-                            </div>
-                        `;
+                        const item = document.createElement('div');
+                        item.className = 'permission-item';
+                        item.style.marginBottom = '10px';
+                        item.style.padding = '8px';
+                        item.style.background = '#f5f5f5';
+                        item.style.borderRadius = '4px';
+                        const input = document.createElement('input');
+                        input.type = 'checkbox';
+                        input.id = `perm_${permCode}`;
+                        input.value = permCode;
+                        const label = document.createElement('label');
+                        label.setAttribute('for', `perm_${permCode}`);
+                        label.style.marginLeft = '8px';
+                        label.style.fontWeight = '500';
+                        label.style.cursor = 'pointer';
+                        label.textContent = permName;
+                        item.appendChild(input);
+                        item.appendChild(label);
+                        if (permDesc) {
+                            const small = document.createElement('small');
+                            small.style.display = 'block';
+                            small.style.marginLeft = '24px';
+                            small.style.color = '#7f8c8d';
+                            small.style.marginTop = '2px';
+                            small.textContent = permDesc;
+                            item.appendChild(small);
+                        }
+                        permList.appendChild(item);
                     });
                     openModal('createUserModal');
                 })

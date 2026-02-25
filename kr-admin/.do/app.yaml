@@ -1,0 +1,58 @@
+name: kr-admin
+services:
+- github:
+    branch: Development
+    deploy_on_push: true
+    repo: sjared12/KR_API
+  name: kr-admin
+  source_dir: kr-admin
+  build_command: mvn clean package -DskipTests
+  run_command: java -Djava.awt.headless=true -Xmx512m -Xms256m -jar target/kr-admin-*.jar
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  health_check:
+    http_path: /actuator/health
+  envs:
+  - key: SERVER_PORT
+    value: "8080"
+  - key: SPRING_PROFILES_ACTIVE
+    value: production
+  - key: SPRING_DATASOURCE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${DB_CONNECTION_STRING}
+  - key: SPRING_DATASOURCE_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    value: ${DB_USERNAME}
+  - key: SPRING_DATASOURCE_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    value: ${DB_PASSWORD}
+  - key: HIKARI_MAX_POOL_SIZE
+    value: "10"
+  - key: JWT_SECRET
+    scope: RUN_AND_BUILD_TIME
+    value: ${JWT_SECRET}
+  - key: JWT_EXPIRATION
+    value: "86400"
+  - key: JAVA_TOOL_OPTIONS
+    value: "-Dfile.encoding=UTF-8"
+
+databases:
+- engine: PG
+  name: kr-admin-db
+  version: "15"
+  production: true
+
+ingress:
+  rules:
+  - component:
+      name: kr-admin
+    match:
+      path:
+        prefix: /
+    preserve_path_prefix: true
+
+regions:
+- name: nyc
+
+termination_grace_period_seconds: 30

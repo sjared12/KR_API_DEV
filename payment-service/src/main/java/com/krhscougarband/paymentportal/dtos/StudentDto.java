@@ -12,10 +12,12 @@ public class StudentDto {
     private String studentId;
     private String firstName;
     private String lastName;
+    private String instrument;
 
     public StudentDto(com.krhscougarband.paymentportal.entities.Student student) {
         this.studentId = student.getStudentId();
         this.firstName = student.getFirstName();
         this.lastName = student.getLastName();
+        this.instrument = student.getInstrument();
     }
 }

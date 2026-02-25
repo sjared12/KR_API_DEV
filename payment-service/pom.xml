@@ -6,15 +6,15 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.5</version>
+        <version>3.4.2</version>
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
-    <artifactId>payment-portal</artifactId>
+    <groupId>com.krhscougarband</groupId>
+    <artifactId>payment-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>PaymentPortal</name>
-    <description>Payment Portal Service</description>
+    <name>PaymentService</name>
+    <description>Unified Payment and Checkout Service</description>
 
     <properties>
         <java.version>21</java.version>
@@ -81,6 +81,7 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+            <version>42.7.7</version>
             <scope>runtime</scope>
         </dependency>
 

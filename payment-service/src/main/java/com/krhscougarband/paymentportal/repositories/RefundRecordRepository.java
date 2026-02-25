@@ -19,4 +19,6 @@ public interface RefundRecordRepository extends JpaRepository<RefundRecord, UUID
     Page<RefundRecord> findByStatus(String status, Pageable pageable);
     
     List<RefundRecord> findByPlanAndStatus(Plan plan, String status);
+    
+    List<RefundRecord> findByStatus(String status);
 }

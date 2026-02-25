@@ -20,12 +20,34 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class PlanService {
+    private final PlanRepository planRepository;
+    private final UserRepository userRepository;
+    private final StudentRepository studentRepository;
+    private final SquareBillingService squareBillingService;
+    private final AuditService auditService;
+    private final RefundRecordRepository refundRecordRepository;
+
+    public PlanService(PlanRepository planRepository,
+                       UserRepository userRepository,
+                       StudentRepository studentRepository,
+                       SquareBillingService squareBillingService,
+                       AuditService auditService,
+                       RefundRecordRepository refundRecordRepository) {
+        this.planRepository = planRepository;
+        this.userRepository = userRepository;
+        this.studentRepository = studentRepository;
+        this.squareBillingService = squareBillingService;
+        this.auditService = auditService;
+        this.refundRecordRepository = refundRecordRepository;
+    }
+
     @Transactional
     public PlanDto updatePlan(UUID id, PlanUpdateDto dto, String email) {
         Plan plan = planRepository.findById(id)
@@ -59,6 +81,34 @@ public class PlanService {
     }
 
     @Transactional
+    public void pausePlan(UUID planId) {
+        Plan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found"));
+        
+        if (!plan.isActive() || "CANCELLED".equals(plan.getStatus())) {
+            throw new BadRequestException("Cannot pause a cancelled or inactive plan");
+        }
+        
+        plan.setPaused(true);
+        plan.setUpdatedAt(LocalDateTime.now());
+        planRepository.save(plan);
+    }
+    
+    @Transactional
+    public void resumePlan(UUID planId) {
+        Plan plan = planRepository.findById(planId)
+                .orElseThrow(() -> new ResourceNotFoundException("Plan not found"));
+        
+        if (!plan.isActive()) {
+            throw new BadRequestException("Cannot resume an inactive plan");
+        }
+        
+        plan.setPaused(false);
+        plan.setUpdatedAt(LocalDateTime.now());
+        planRepository.save(plan);
+    }
+
+    @Transactional
     public Plan updateFrequency(UUID id, String frequency, String email) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found"));
@@ -73,48 +123,67 @@ public class PlanService {
     }
 
     @Transactional
-    public void refundPlan(UUID planId) {
+    public void refundPlan(UUID planId, long amountCents, String refundMethod) {
         Plan plan = planRepository.findById(planId)
                 .orElseThrow(() -> new ResourceNotFoundException("Plan not found"));
         if (!plan.isActive() || "CANCELLED".equals(plan.getStatus())) {
             throw new BadRequestException("Cannot refund a cancelled or inactive plan");
         }
-        // Example: create a refund record and mark plan as refund requested
+        
+        BigDecimal refundAmount = BigDecimal.valueOf(amountCents);
+        BigDecimal currentAmount = plan.getAmountPaid() != null ? plan.getAmountPaid() : BigDecimal.ZERO;
+        
+        // Validate refund amount doesn't exceed amount paid
+        if (refundAmount.compareTo(currentAmount) > 0) {
+            throw new BadRequestException("Refund amount cannot exceed amount already paid");
+        }
+        
+        // Create refund record with SUBMITTED status - pending approval
         RefundRecord refund = new RefundRecord();
         refund.setPlan(plan);
+        refund.setRefundAmount(refundAmount);
+        refund.setRefundMethod(refundMethod);
         refund.setRequestedAt(LocalDateTime.now());
-        refund.setStatus("REQUESTED");
+        refund.setStatus("SUBMITTED");
         refundRecordRepository.save(refund);
-        plan.setStatus("REFUND_REQUESTED");
+    }
+
+    /**
+     * Approve a submitted refund (mark as approved, do not modify amountPaid directly)
+     * The mapToDto method will calculate net amount paid by subtracting approved refunds
+     */
+    public void approveRefund(UUID refundId) {
+        RefundRecord refund = refundRecordRepository.findById(refundId)
+                .orElseThrow(() -> new ResourceNotFoundException("Refund record not found"));
+        
+        if (!"SUBMITTED".equals(refund.getStatus())) {
+            throw new BadRequestException("Only SUBMITTED refunds can be approved");
+        }
+        
+        Plan plan = refund.getPlan();
+        BigDecimal currentAmount = plan.getAmountPaid() != null ? plan.getAmountPaid() : BigDecimal.ZERO;
+        
+        // Validate that we have enough paid amount to refund
+        if (refund.getRefundAmount().compareTo(currentAmount) > 0) {
+            throw new BadRequestException("Refund amount cannot exceed amount paid");
+        }
+        
+        // Mark refund as APPROVED and processed
+        // Note: Do NOT reduce amountPaid here - mapToDto will subtract approved refunds dynamically
+        refund.setStatus("APPROVED");
+        refund.setApprovedAt(LocalDateTime.now());
+        refund.setProcessedAt(LocalDateTime.now());
         plan.setUpdatedAt(LocalDateTime.now());
         planRepository.save(plan);
-    }
-    private final PlanRepository planRepository;
-    private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
-    private final SquareBillingService squareBillingService;
-    private final AuditService auditService;
-    private final RefundRecordRepository refundRecordRepository;
-
-    public PlanService(PlanRepository planRepository,
-                       UserRepository userRepository,
-                       StudentRepository studentRepository,
-                       SquareBillingService squareBillingService,
-                       AuditService auditService,
-                       RefundRecordRepository refundRecordRepository) {
-        this.planRepository = planRepository;
-        this.userRepository = userRepository;
-        this.studentRepository = studentRepository;
-        this.squareBillingService = squareBillingService;
-        this.auditService = auditService;
-        this.refundRecordRepository = refundRecordRepository;
+        refundRecordRepository.save(refund);
     }
 
     public List<PlanDto> getPlansForUser(String email) {
-        User user = userRepository.findByEmail(email).orElseThrow();
-        return planRepository.findByOwner(user).stream()
+        return userRepository.findByEmail(email)
+            .map(user -> planRepository.findByOwner(user).stream()
                 .map(this::mapToDto)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()))
+            .orElseGet(List::of);
     }
 
     public List<PlanDto> getAllPlans() {
@@ -164,6 +233,35 @@ public class PlanService {
     }
 
 
+    /**
+     * Get all pending refunds awaiting approval by refund approver
+     */
+    public List<RefundRecordDto> getPendingRefunds() {
+        List<RefundRecord> records = refundRecordRepository.findByStatus("SUBMITTED");
+        return records.stream()
+                .map(this::refundRecordToDto)
+                .collect(Collectors.toList());
+    }
+
+    private RefundRecordDto refundRecordToDto(RefundRecord record) {
+        if (record == null) return null;
+        RefundRecordDto dto = new RefundRecordDto();
+        dto.setId(record.getId() != null ? record.getId().toString() : null);
+        dto.setPlanId(record.getPlan() != null ? record.getPlan().getId().toString() : null);
+        dto.setRefundAmount(record.getRefundAmount());
+        dto.setRefundReason(record.getRefundReason());
+        dto.setStatus(record.getStatus());
+        dto.setSquareRefundId(record.getSquareRefundId());
+        dto.setRefundMethod(record.getRefundMethod());
+        dto.setInitiatedByUserEmail(record.getInitiatedByUser() != null ? record.getInitiatedByUser().getEmail() : null);
+        dto.setApprovedByUserEmail(record.getApprovedByUser() != null ? record.getApprovedByUser().getEmail() : null);
+        dto.setRequestedAt(record.getRequestedAt());
+        dto.setApprovedAt(record.getApprovedAt());
+        dto.setProcessedAt(record.getProcessedAt());
+        dto.setNotes(record.getNotes());
+        return dto;
+    }
+
     private PlanDto mapToDto(Plan plan) {
         if (plan == null) return null;
         PlanDto dto = new PlanDto();
@@ -171,10 +269,31 @@ public class PlanService {
         dto.setName(plan.getName());
         dto.setAmount(plan.getAmount());
         dto.setTotalOwed(plan.getTotalOwed());
-        dto.setAmountPaid(plan.getAmountPaid());
+        
+        // Calculate net amount paid by subtracting approved refunds
+        BigDecimal amountPaid = plan.getAmountPaid() != null ? plan.getAmountPaid() : BigDecimal.ZERO;
+        BigDecimal totalRefunds = BigDecimal.ZERO;
+        
+        if (plan.getRefundRecords() != null && !plan.getRefundRecords().isEmpty()) {
+            totalRefunds = plan.getRefundRecords().stream()
+                    .filter(r -> "APPROVED".equals(r.getStatus()))
+                    .map(RefundRecord::getRefundAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        
+        BigDecimal netAmountPaid = amountPaid.subtract(totalRefunds);
+        dto.setAmountPaid(netAmountPaid);
+        
         dto.setFrequency(plan.getFrequency());
         dto.setCurrency(plan.getCurrency());
         dto.setStatus(plan.getStatus());
+        dto.setPaused(plan.isPaused());
+        dto.setStartDate(plan.getStartDate() != null ? plan.getStartDate().toString() : null);
+        
+        // Calculate next charge date
+        LocalDateTime nextCharge = plan.calculateNextChargeDate();
+        dto.setNextChargeDate(nextCharge != null ? nextCharge.toString() : null);
+        
         dto.setStudentId(plan.getStudent() != null ? plan.getStudent().getId().toString() : null);
         dto.setStudentName(plan.getStudent() != null ? plan.getStudent().getName() : null);
         dto.setUserEmail(plan.getOwner() != null ? plan.getOwner().getEmail() : null);

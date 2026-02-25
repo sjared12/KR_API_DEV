@@ -1,0 +1,189 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+domains:
+- domain: apps.dev.krhscougarband.org
+  type: PRIMARY
+features:
+- buildpack-stack=ubuntu-22
+ingress:
+  rules:
+  - component:
+      name: payment-service
+      preserve_path_prefix: true
+    match:
+      authority:
+        exact: ""
+      path:
+        prefix: /payments
+  - component:
+      name: kr-api-landing
+    match:
+      authority:
+        exact: ""
+      path:
+        prefix: /
+  - component:
+      name: keycloak-keycloak
+      preserve_path_prefix: true
+    match:
+      authority:
+        exact: ""
+      path:
+        prefix: /auth
+  - component:
+      name: kr-api-checkout-service
+      preserve_path_prefix: true
+    match:
+      authority:
+        exact: ""
+      path:
+        prefix: /checkout
+maintenance: {}
+name: apps-dev-krhscougarband-org
+region: nyc
+services:
+- dockerfile_path: payment-service/Dockerfile
+  envs:
+  - key: SPRING_DATASOURCE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: jdbc:postgresql://pg1-krhscougarband-org-do-user-27298822-0.h.db.ondigitalocean.com:25060/payment_service?sslmode=require
+  - key: SPRING_DATASOURCE_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    value: doadmin
+  - key: SPRING_DATASOURCE_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:PZqdlDCF+l6a+cuPiIXr1WPLadb+zolB:CYXIRWnZYfw0iRVjU/BTdOzhe8alqEiREgpxiD1Kv1q6Gq/8Acsg6Q==]
+  - key: SPRING_JPA_HIBERNATE_DDL_AUTO
+    scope: RUN_AND_BUILD_TIME
+    value: update
+  - key: KEYCLOAK_AUTH_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://apps.dev.krhscougarband.org/auth
+  - key: KEYCLOAK_REALM
+    scope: RUN_AND_BUILD_TIME
+    value: KRBandDev
+  - key: KEYCLOAK_CLIENT_ID
+    scope: RUN_AND_BUILD_TIME
+    value: payment-service
+  - key: KEYCLOAK_LOGOUT_REDIRECT_URI
+    scope: RUN_AND_BUILD_TIME
+    value: https://apps.dev.krhscougarband.org/payments/
+  - key: KEYCLOAK_REDIRECT_URI
+    scope: RUN_AND_BUILD_TIME
+    value: https://apps.dev.krhscougarband.org/payments/
+  github:
+    branch: Development
+    deploy_on_push: true
+    repo: sjared12/KR_API
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  name: payment-service
+  source_dir: payment-service
+- envs:
+  - key: KC_DB
+    scope: RUN_AND_BUILD_TIME
+    value: postgres
+  - key: KC_DB_URL
+    scope: RUN_AND_BUILD_TIME
+    value: jdbc:postgresql://pg1-krhscougarband-org-do-user-27298822-0.h.db.ondigitalocean.com:25060/keycloak?sslmode=require
+  - key: KC_DB_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    value: doadmin
+  - key: KC_DB_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:iRVrvLWupSOecKdIVY/b4lBH26drbFv8:5+bG+0vl/Ph4R+oR8XvxXmX6yh2MgILlXLE0sJYq3SoixbUmthSuXg==]
+  - key: KC_HOSTNAME
+    scope: RUN_AND_BUILD_TIME
+    value: apps.dev.krhscougarband.org
+  - key: KC_HTTP_RELATIVE_PATH
+    scope: RUN_AND_BUILD_TIME
+    value: /auth
+  - key: KC_PROXY_HEADERS
+    scope: RUN_AND_BUILD_TIME
+    value: xforwarded
+  - key: KC_HTTP_ENABLED
+    scope: RUN_AND_BUILD_TIME
+    value: "true"
+  - key: KC_HEALTH_ENABLED
+    scope: RUN_AND_BUILD_TIME
+    value: "true"
+  - key: KC_BOOTSTRAP_ADMIN_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    value: KR_AuthAdmin
+  - key: KC_BOOTSTRAP_ADMIN_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    value: Password
+  health_check:
+    failure_threshold: 10
+    period_seconds: 10
+    port: 8080
+    success_threshold: 1
+    timeout_seconds: 5
+  http_port: 8080
+  image:
+    registry: keycloak
+    registry_type: DOCKER_HUB
+    repository: keycloak
+    tag: 26.5.2
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-1gb
+  liveness_health_check:
+    failure_threshold: 3
+    initial_delay_seconds: 60
+    period_seconds: 30
+    port: 8080
+    success_threshold: 1
+    timeout_seconds: 5
+  name: keycloak-keycloak
+  run_command: /opt/keycloak/bin/kc.sh start
+- dockerfile_path: checkout-service/Dockerfile
+  envs:
+  - key: SPRING_DATASOURCE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: jdbc:postgresql://pg1-krhscougarband-org-do-user-27298822-0.h.db.ondigitalocean.com:25060/checkout-service?sslmode=require
+  - key: SPRING_DATASOURCE_USERNAME
+    scope: RUN_AND_BUILD_TIME
+    value: doadmin
+  - key: SPRING_DATASOURCE_PASSWORD
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+    value: EV[1:6F7dFeFLeaHP8kI0xtUK0UPOFckQOP7W:oYCmFHExVT4WVUexUIfjMa0DLT2Td5BHLAqaMrdZXIhk+vn3iSK9hQ==]
+  - key: KEYCLOAK_AUTH_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://apps.dev.krhscougarband.org/auth
+  - key: KEYCLOAK_REALM
+    scope: RUN_AND_BUILD_TIME
+    value: KRBandDev
+  - key: KEYCLOAK_CLIENT_ID
+    scope: RUN_AND_BUILD_TIME
+    value: checkout-service
+  - key: KEYCLOAK_ISSUER_URI
+    scope: RUN_AND_BUILD_TIME
+    value: https://apps.dev.krhscougarband.org/auth/realms/KRBandDev
+  - key: KEYCLOAK_REDIRECT_URI
+    scope: RUN_AND_BUILD_TIME
+    value: https://apps.dev.krhscougarband.org/checkout/
+  - key: KEYCLOAK_LOGOUT_REDIRECT_URI
+    scope: RUN_AND_BUILD_TIME
+    value: https://apps.dev.krhscougarband.org/checkout
+  github:
+    branch: Development
+    deploy_on_push: true
+    repo: sjared12/KR_API
+  http_port: 8081
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-0.5gb
+  name: kr-api-checkout-service
+  source_dir: checkout-service
+static_sites:
+- environment_slug: html
+  github:
+    branch: Development
+    deploy_on_push: true
+    repo: sjared12/KR_API
+  name: kr-api-landing
+  source_dir: landing
